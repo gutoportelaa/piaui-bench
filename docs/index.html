@@ -85,6 +85,10 @@
         No Linux com systemd: <code>systemctl edit ollama</code>, adicione
         <code>Environment="OLLAMA_ORIGINS=https://gutoportelaa.github.io"</code> e reinicie o serviço.
         Depois clique em <em>Conectar</em>.
+        <br><br>
+        Chrome, Edge e Firefox tratam <code>localhost</code> como origem confiável e permitem a chamada
+        mesmo a partir de uma página HTTPS. No Safari, sirva a página localmente
+        (<code>python3 -m http.server -d docs 8000</code>) em vez de usar o GitHub Pages.
       </div>
 
       <div class="controles">
