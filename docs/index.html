@@ -122,8 +122,14 @@
         <label class="campo">Host do Ollama
           <input id="host" value="http://localhost:11434">
         </label>
+        <label class="campo">Ordem das alternativas
+          <select id="modo">
+            <option value="ciclica" selected>Cíclica (5 posições)</option>
+            <option value="fixa">Fixa (1 chamada)</option>
+          </select>
+        </label>
         <label class="campo">Repetições por questão
-          <select id="runs"><option>1</option><option selected>3</option><option>5</option></select>
+          <select id="runs"><option>1</option><option>3</option><option selected>5</option></select>
         </label>
         <button class="acao sec" id="btn-conectar">Conectar</button>
         <button class="acao" id="btn-rodar" disabled>Executar benchmark</button>
@@ -201,11 +207,12 @@
       <div id="lista-custom"></div>
 
       <div class="controles" style="margin-top:18px">
-        <button class="acao" id="btn-enviar-todas">Compartilhar todas via GitHub</button>
+        <button class="acao" id="btn-link">Gerar link com minhas questões</button>
+        <button class="acao sec" id="btn-enviar-todas">Compartilhar via GitHub</button>
         <button class="acao sec" id="btn-exportar">Baixar benchmark.json completo</button>
         <button class="acao sec" id="btn-copiar">Copiar só as novas (JSON)</button>
         <label class="acao sec" style="cursor:pointer;font-weight:600">
-          Importar JSON<input type="file" id="f-importar" accept="application/json" hidden>
+          Importar JSON<input type="file" id="f-importar" accept="application/json" multiple hidden>
         </label>
         <button class="acao sec" id="btn-limpar">Apagar todas</button>
       </div>
@@ -261,10 +268,67 @@ git commit -am "Adiciona questões sobre X" &amp;&amp; git push</code></pre>
         <li><strong>Prompt:</strong> um <em>system prompt</em> fixo em português + a questão com as cinco alternativas rotuladas A–E, pedindo apenas a letra.</li>
         <li><strong>Decodificação:</strong> <code>temperature = 0</code>, <code>top_p = 1</code>, <code>seed</code> fixa e <code>think: false</code> (desliga o modo de raciocínio do Qwen3), garantindo reprodutibilidade.</li>
         <li><strong>Saída estruturada:</strong> usa o parâmetro <code>format</code> do Ollama com um schema JSON cujo <code>enum</code> é <code>["A","B","C","D","E"]</code>. Isso elimina falhas de parsing e separa erro de conhecimento de erro de formatação.</li>
-        <li><strong>Repetições:</strong> cada questão é feita <em>n</em> vezes (padrão 3) com sementes diferentes; a resposta considerada é a moda, e a acurácia global usa todas as chamadas.</li>
-        <li><strong>Métrica:</strong> acurácia = acertos / total de chamadas. Baseline aleatório = <strong>20%</strong> (1 em 5).</li>
+        <li><strong>Repetições:</strong> 1 chamada em ordem fixa + 5 em ordem cíclica, por questão e por modelo — 6 no total. Repetir prompt idêntico com <code>temperature=0</code> não gera informação nova; ver o quadro abaixo.</li>
+        <li><strong>Métrica:</strong> acurácia = acertos / total de chamadas, contadas individualmente. Baseline aleatório = <strong>20%</strong> (1 em 5).</li>
         <li><strong>Limitação:</strong> com apenas 10 itens, o intervalo de confiança é largo (cada questão vale 10 p.p.). O resultado é indicativo, não conclusivo — veja "Como ampliar" no README.</li>
       </ul>
+    </div>
+
+    <div class="cartao">
+      <h2>Quantas vezes cada pergunta é feita</h2>
+      <p class="nota">
+        O benchmark roda em duas passadas independentes, e cada uma grava seu próprio arquivo
+        de resultados. Por questão e por modelo:
+      </p>
+      <div class="rolagem">
+        <table>
+          <thead><tr><th>Passada</th><th class="centro">Chamadas</th><th>O que muda entre elas</th><th>Serve para</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Ordem fixa</strong></td><td class="centro">1</td>
+                <td>nada — é uma medição única</td>
+                <td>a acurácia "ingênua", como um benchmark de múltipla escolha comum reportaria</td></tr>
+            <tr><td><strong>Ordem cíclica</strong></td><td class="centro">5</td>
+                <td>a lista de alternativas é rotacionada em 1 posição a cada chamada</td>
+                <td>o gabarito visita <em>cada</em> uma das cinco letras exatamente uma vez</td></tr>
+            <tr><td><strong>Total</strong></td><td class="centro"><strong>6</strong></td>
+                <td>—</td><td>com 3 modelos: 18 chamadas por questão; 180 no benchmark inteiro</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="aviso">
+        <strong>Por que a ordem fixa é 1 chamada, e não 3</strong>
+        <div style="margin-top:8px">
+          Com <code>temperature=0</code> a decodificação é gulosa: o mesmo prompt produz sempre a
+          mesma saída. Medimos isso — nas 30 repetições da versão anterior (3 modelos × 10 questões),
+          <strong>as 3 respostas foram idênticas em 30 de 30 casos.</strong> Repetir prompt idêntico
+          consumia 3× o tempo sem gerar informação nova. Repetição só informa quando o prompt muda,
+          e é por isso que todo o orçamento de repetição foi para as permutações.
+        </div>
+      </div>
+    </div>
+
+    <div class="cartao">
+      <h2>Como as chamadas viram um número</h2>
+      <p class="nota">Há duas agregações diferentes, e elas podem discordar — de propósito.</p>
+      <ul>
+        <li><strong>Acurácia (a métrica reportada):</strong> acertos ÷ total de chamadas, contadas
+          individualmente. Na passada cíclica, uma questão em que o modelo acerta 1 das 5 posições
+          contribui com 1/5 — <em>acerto parcial existe</em> e entra na conta.</li>
+        <li><strong>✓/✗ da tabela por questão (só exibição):</strong> voto majoritário,
+          <code>acertos > chamadas/2</code>. Acertar 1 de 5 vira <strong>✗</strong>, apesar de a
+          questão ter contribuído com 1/5 para a acurácia. Empate conta como erro.</li>
+        <li><strong>Letra exibida:</strong> a resposta mais frequente entre as chamadas, já
+          convertida de volta para a numeração original das alternativas.</li>
+        <li><strong>Variação em p.p.:</strong> subtração direta das duas acurácias — 40% → 26,7%
+          é <strong>−13,3 pontos percentuais</strong>, não −13,3%. Em variação relativa isso seria
+          −33%. O consolidado (<code>bench/consolidar.py</code>) grava as duas formas em
+          <code>summary.json</code> e <code>summary.csv</code>.</li>
+      </ul>
+      <p class="nota" style="margin:14px 0 0">
+        Um modelo que responde certo em 2 das 5 posições e erra em 3 não "sabe pela metade": ele
+        acerta quando o gabarito cai numa posição que ele favorece. É esse padrão que a passada
+        cíclica expõe e a ordem fixa esconde.
+      </p>
     </div>
 
     <div class="cartao">
@@ -276,8 +340,11 @@ ollama pull llama3.2:3b
 ollama pull qwen3:4b
 ollama pull gemma3:4b
 
-python3 bench/run_bench.py --runs 3
-python3 -m http.server -d docs 8000   # abre http://localhost:8000</code></pre>
+python3 bench/run_bench.py --modo fixa    --runs 1
+python3 bench/run_bench.py --modo ciclica --runs 5 --out docs/results_shuffle.json
+python3 bench/consolidar.py               # tabela do relatório + summary.csv
+
+python3 -m http.server -d docs 8000       # abre http://localhost:8000</code></pre>
     </div>
 
     <div class="cartao">

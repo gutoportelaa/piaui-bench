@@ -1,0 +1,4 @@
+modelo,acuracia_fixa,acuracia_permutada,variacao_pp,variacao_relativa,acima_do_acaso_pp,chamadas_fixa,chamadas_permutada,letra_mais_escolhida,concentracao_letra_top,latencia_media_s
+llama3.2:3b,0.5,0.38,-12.0,-0.24,18.0,10,50,B,0.38,0.749
+qwen3:4b,0.4,0.36,-4.0,-0.1,16.0,10,50,B,0.28,0.695
+gemma3:4b,0.3,0.24,-6.0,-0.2,4.0,10,50,A,0.3,1.145

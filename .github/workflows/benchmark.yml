@@ -9,9 +9,9 @@ on:
       models:
         description: "Modelos (separados por espaco)"
         default: "llama3.2:3b qwen3:4b gemma3:4b"
-      runs:
-        description: "Repeticoes por questao"
-        default: "3"
+      runs_ciclicas:
+        description: "Chamadas na passada ciclica (5 = cobertura completa das posicoes)"
+        default: "5"
   push:
     paths:
       - "docs/benchmark.json"   # questao nova aceita -> re-mede tudo
@@ -52,11 +52,14 @@ jobs:
       - name: Rodar o benchmark
         run: |
           MODELS="${{ inputs.models || 'llama3.2:3b qwen3:4b gemma3:4b' }}"
-          RUNS="${{ inputs.runs || '3' }}"
-          python3 bench/run_bench.py --models $MODELS --runs "$RUNS" \
+          CICLICAS="${{ inputs.runs_ciclicas || '5' }}"
+          # Ordem fixa: 1 chamada basta (temperature=0 e deterministico).
+          python3 bench/run_bench.py --models $MODELS --modo fixa --runs 1 \
             --timeout 600 --out docs/results.json
-          python3 bench/run_bench.py --models $MODELS --runs "$RUNS" --shuffle \
+          # Ordem ciclica: o gabarito visita cada uma das 5 posicoes.
+          python3 bench/run_bench.py --models $MODELS --modo ciclica --runs "$CICLICAS" \
             --timeout 600 --out docs/results_shuffle.json
+          python3 bench/consolidar.py
 
       - name: Resumo
         run: |
@@ -77,7 +80,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/results.json docs/results_shuffle.json
+          git add docs/results.json docs/results_shuffle.json docs/summary.json docs/summary.csv
           git diff --staged --quiet && echo "Sem mudancas." && exit 0
           git commit -m "Atualiza resultados do benchmark (runner: ${{ runner.os }}, ${{ github.event_name }})"
           git push

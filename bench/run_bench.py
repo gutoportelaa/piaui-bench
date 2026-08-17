@@ -40,15 +40,31 @@ FORMATO = {
 LETRAS = ("A", "B", "C", "D", "E")
 
 
-def embaralha(questao: dict, seed: int) -> dict:
-    """Permuta as alternativas com semente fixa e remapeia o gabarito.
+def gera_variante(questao: dict, r: int, modo: str) -> dict:
+    """Devolve a repeticao r da questao, com as alternativas reordenadas.
 
-    Serve para medir vies posicional: um modelo que realmente sabe a resposta
-    mantem a acuracia sob permutacao; um que so prefere a letra "A" despenca.
+    modo="fixa"      -> sempre a ordem original do benchmark.json.
+    modo="ciclica"   -> rotaciona a lista em r posicoes. Com runs=5 o gabarito
+                        ocupa cada uma das cinco letras exatamente uma vez, o que
+                        cancela a preferencia por posicao por construcao.
+    modo="aleatoria" -> permutacao pseudoaleatoria com semente (id da questao, r).
+
+    Em qualquer modo o gabarito e remapeado junto, entao a correcao continua valida.
     """
+    if modo == "fixa":
+        return questao
+
     valores = [questao["alternativas"][l] for l in LETRAS]
     correta = questao["alternativas"][questao["resposta"]]
-    random.Random(f"{questao['id']}-{seed}").shuffle(valores)
+
+    if modo == "ciclica":
+        deslocamento = r % len(LETRAS)
+        valores = valores[deslocamento:] + valores[:deslocamento]
+    elif modo == "aleatoria":
+        random.Random(f"{questao['id']}-{r}").shuffle(valores)
+    else:
+        raise ValueError(f"modo desconhecido: {modo}")
+
     novo = dict(questao)
     novo["alternativas"] = dict(zip(LETRAS, valores))
     novo["resposta"] = LETRAS[valores.index(correta)]
@@ -124,7 +140,7 @@ def chama_ollama(host: str, modelo: str, prompt: str, seed: int, timeout: int) -
 
 
 def avalia_modelo(host: str, modelo: str, questoes: list, runs: int, timeout: int,
-                  shuffle: bool = False) -> dict:
+                  modo: str = "fixa") -> dict:
     respostas = []
     acertos_por_run = [0] * runs
     letras_vistas = []  # letras como apresentadas ao modelo, para medir vies posicional
@@ -133,8 +149,7 @@ def avalia_modelo(host: str, modelo: str, questoes: list, runs: int, timeout: in
     for questao in questoes:
         letras, tempos, erro_msg = [], [], None
         for r in range(runs):
-            # Com --shuffle cada repeticao usa uma permutacao diferente das alternativas.
-            qv = embaralha(questao, r) if shuffle else questao
+            qv = gera_variante(questao, r, modo)
             try:
                 bruto, decorrido = chama_ollama(host, modelo, monta_prompt(qv), seed=42 + r, timeout=timeout)
             except Exception as exc:  # rede, timeout, modelo ausente
@@ -175,7 +190,7 @@ def avalia_modelo(host: str, modelo: str, questoes: list, runs: int, timeout: in
     return {
         "modelo": modelo,
         "runs": runs,
-        "shuffle": shuffle,
+        "modo": modo,
         "distribuicao_letras": {l: letras_vistas.count(l) for l in LETRAS},
         "acuracia": round(acertos_totais / total, 4) if total else 0.0,
         "acuracia_por_run": [round(a / len(questoes), 4) for a in acertos_por_run],
@@ -192,18 +207,32 @@ def main() -> None:
     parser.add_argument("--runs", type=int, default=3, help="repeticoes por questao (default: 3)")
     parser.add_argument("--host", default="http://localhost:11434")
     parser.add_argument("--timeout", type=int, default=180)
-    parser.add_argument("--shuffle", action="store_true",
-                        help="permuta as alternativas a cada repeticao (mede vies posicional)")
+    parser.add_argument("--modo", choices=["fixa", "ciclica", "aleatoria"], default="fixa",
+                        help="ordem das alternativas: fixa (default), ciclica ou aleatoria")
+    parser.add_argument("--shuffle", action="store_true", help=argparse.SUPPRESS)  # alias antigo
     parser.add_argument("--out", default=str(RESULTADOS))
     args = parser.parse_args()
+
+    if args.shuffle and args.modo == "fixa":
+        args.modo = "aleatoria"
+
+    # Com temperature=0 a decodificacao e gulosa: repetir o mesmo prompt devolve a
+    # mesma resposta. Repeticao so informa alguma coisa quando o prompt muda.
+    if args.modo == "fixa" and args.runs > 1:
+        print(f"[aviso] modo 'fixa' com --runs {args.runs}: o prompt e identico em todas as "
+              f"repeticoes e temperature=0, entao as respostas tendem a ser iguais. "
+              f"Use --runs 1, ou --modo ciclica --runs 5.")
+    if args.modo == "ciclica" and args.runs != len(LETRAS):
+        print(f"[aviso] modo 'ciclica' rende cobertura completa das posicoes com "
+              f"--runs {len(LETRAS)}; com --runs {args.runs} a cobertura fica desbalanceada.")
 
     benchmark = json.loads(BENCHMARK.read_text(encoding="utf-8"))
     questoes = benchmark["questoes"]
 
     resultados = []
     for modelo in args.models:
-        print(f"\n>> {modelo}  ({len(questoes)} questoes x {args.runs} runs)")
-        resultado = avalia_modelo(args.host, modelo, questoes, args.runs, args.timeout, args.shuffle)
+        print(f"\n>> {modelo}  ({len(questoes)} questoes x {args.runs} runs, ordem {args.modo})")
+        resultado = avalia_modelo(args.host, modelo, questoes, args.runs, args.timeout, args.modo)
         print(f"   acuracia = {resultado['acuracia']:.1%}  latencia media = {resultado['latencia_media_s']}s")
         resultados.append(resultado)
 
@@ -213,7 +242,8 @@ def main() -> None:
         "executado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "host": args.host,
         "runs": args.runs,
-        "shuffle": args.shuffle,
+        "modo": args.modo,
+        "chamadas_por_questao_por_modelo": args.runs,
         "metrica": "acuracia",
         "resultados": sorted(resultados, key=lambda r: r["acuracia"], reverse=True),
     }

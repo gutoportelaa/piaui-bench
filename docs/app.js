@@ -290,6 +290,60 @@ function desenhaCustom() {
 
 const REPO = "gutoportelaa/piaui-bench";
 
+/* ---- compartilhamento por link (sem conta, sem servidor) ----
+   As questões viajam codificadas no fragmento da URL (#q=…). O fragmento nunca
+   é enviado ao servidor pelo navegador, então o link funciona até offline. */
+function paraBase64(texto) {
+  const bytes = new TextEncoder().encode(texto);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function deBase64(b64) {
+  const normal = b64.replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(normal + "=".repeat((4 - normal.length % 4) % 4));
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+}
+
+function geraLink(questoes) {
+  const limpas = questoes.filter(Boolean).map(({ personalizada, ...q }) => q);
+  const base = location.origin + location.pathname;
+  return base + "#q=" + paraBase64(JSON.stringify(limpas));
+}
+
+/* Se a página abriu com #q=…, oferece importar as questões que vieram no link. */
+function importaDoLink() {
+  const achado = location.hash.match(/[#&]q=([A-Za-z0-9\-_]+)/);
+  if (!achado) return;
+  history.replaceState(null, "", location.pathname);  // limpa a URL
+
+  let recebidas;
+  try {
+    recebidas = JSON.parse(deBase64(achado[1]));
+  } catch (_) {
+    return;
+  }
+  const validas = (Array.isArray(recebidas) ? recebidas : []).filter(validaEstrutura);
+  if (!validas.length) return;
+
+  const jaTenho = new Set(questoesAtivas().map((q) => q.pergunta.trim().toLowerCase()));
+  const novas = validas.filter((q) => !jaTenho.has(q.pergunta.trim().toLowerCase()));
+  if (!novas.length) {
+    return alert(`O link trazia ${validas.length} questão(ões), todas já presentes aqui.`);
+  }
+  if (!confirm(`Este link traz ${novas.length} questão(ões) nova(s). Adicionar ao seu conjunto?`)) return;
+
+  novas.forEach((q) => {
+    const { personalizada, ...limpa } = q;
+    limpa.id = proximoId();
+    limpa.personalizada = true;
+    PERSONALIZADAS.push(limpa);
+  });
+  salvaPersonalizadas();
+  document.querySelector('[data-painel="editor"]').click();
+  document.getElementById("status-editor").textContent =
+    `${novas.length} questão(ões) importada(s) do link. Conjunto ativo: ${questoesAtivas().length}.`;
+}
+
 /* Compartilhamento sem backend: abre uma issue do GitHub já preenchida.
    O site é estático e não pode gravar nada — o repositório é o banco de dados. */
 function abreIssue(questoes) {
@@ -361,6 +415,22 @@ function ligaEditor() {
     document.getElementById("btn-cancelar").style.display = "none";
   });
 
+  document.getElementById("btn-link").addEventListener("click", async () => {
+    if (!PERSONALIZADAS.length) return aviso("Nenhuma questão sua para compartilhar.");
+    const link = geraLink(PERSONALIZADAS);
+    if (link.length > 12000) {
+      baixa("questoes-novas.json", PERSONALIZADAS.map(({ personalizada, ...q }) => q));
+      return aviso("Conjunto grande demais para um link — baixei o JSON para enviar como arquivo.");
+    }
+    try {
+      await navigator.clipboard.writeText(link);
+      aviso(`Link com ${PERSONALIZADAS.length} questão(ões) copiado (${link.length} caracteres). Envie para quem vai executar.`);
+    } catch (_) {
+      prompt("Copie o link e envie para quem vai executar o benchmark:", link);
+      aviso(`Link com ${PERSONALIZADAS.length} questão(ões) gerado — copie da caixa acima.`);
+    }
+  });
+
   document.getElementById("btn-enviar-todas").addEventListener("click", () => {
     if (!PERSONALIZADAS.length) return aviso("Nenhuma questão sua para compartilhar.");
     abreIssue(PERSONALIZADAS);
@@ -387,24 +457,40 @@ function ligaEditor() {
     }
   });
 
+  /* Aceita vários arquivos de uma vez: em sala, o host recebe um JSON por aluno. */
   document.getElementById("f-importar").addEventListener("change", async (ev) => {
-    const arquivo = ev.target.files[0];
-    if (!arquivo) return;
-    try {
-      const dados = JSON.parse(await arquivo.text());
-      const lista = Array.isArray(dados) ? dados : dados.questoes || [];
-      const validas = lista.filter(validaEstrutura);
-      const oficiais = new Set(BENCH.questoes.map((q) => JSON.stringify([q.pergunta, q.resposta])));
-      const novas = validas
-        .filter((q) => !oficiais.has(JSON.stringify([q.pergunta, q.resposta])))
-        .map((q) => ({ ...q, personalizada: true }));
-      // Reatribui ids para não colidir com as oficiais nem entre si.
-      novas.forEach((q) => { q.id = proximoId(); PERSONALIZADAS.push(q); });
-      salvaPersonalizadas();
-      aviso(`Importadas ${novas.length} de ${lista.length} questões (${lista.length - validas.length} inválidas, ${validas.length - novas.length} já oficiais).`);
-    } catch (e) {
-      aviso("Arquivo inválido: " + e.message);
+    const arquivos = [...ev.target.files];
+    if (!arquivos.length) return;
+
+    let lidas = 0, invalidas = 0, repetidas = 0, adicionadas = 0;
+    const falhas = [];
+
+    for (const arquivo of arquivos) {
+      let lista;
+      try {
+        const dados = JSON.parse(await arquivo.text());
+        lista = Array.isArray(dados) ? dados : dados.questoes || [];
+      } catch (e) {
+        falhas.push(arquivo.name);
+        continue;
+      }
+      lidas += lista.length;
+      for (const q of lista) {
+        if (!validaEstrutura(q)) { invalidas++; continue; }
+        // Deduplica pelo enunciado contra tudo que já está ativo.
+        const chave = q.pergunta.trim().toLowerCase();
+        if (questoesAtivas().some((x) => x.pergunta.trim().toLowerCase() === chave)) { repetidas++; continue; }
+        const { personalizada, ...limpa } = q;
+        limpa.id = proximoId();
+        limpa.personalizada = true;
+        PERSONALIZADAS.push(limpa);
+        adicionadas++;
+      }
     }
+    salvaPersonalizadas();
+    aviso(`${arquivos.length} arquivo(s) · ${lidas} questões lidas → ${adicionadas} adicionadas ` +
+      `(${repetidas} repetidas, ${invalidas} inválidas` +
+      `${falhas.length ? `, ilegíveis: ${falhas.join(", ")}` : ""}).`);
     ev.target.value = "";
   });
 
@@ -427,6 +513,20 @@ const FORMATO = {
 const SYSTEM = "Voce e um especialista em geografia, historia e cultura do Estado do Piaui, Brasil. " +
   "Responda as questoes de multipla escolha escolhendo exatamente uma alternativa. " +
   "Responda somente com a letra da alternativa correta (A, B, C, D ou E), sem explicacao.";
+
+/* Mesma lógica de gera_variante() do runner Python — ver bench/run_bench.py. */
+function geraVariante(q, r, modo) {
+  if (modo === "fixa") return q;
+  const valores = LETRAS.map((l) => q.alternativas[l]);
+  const correta = q.alternativas[q.resposta];
+  const d = r % LETRAS.length;
+  const rot = valores.slice(d).concat(valores.slice(0, d));
+  return {
+    ...q,
+    alternativas: Object.fromEntries(LETRAS.map((l, i) => [l, rot[i]])),
+    resposta: LETRAS[rot.indexOf(correta)],
+  };
+}
 
 function montaPrompt(q) {
   return [q.pergunta, "", ...LETRAS.map((l) => `${l}) ${q.alternativas[l]}`), "",
@@ -492,6 +592,7 @@ document.getElementById("btn-rodar").addEventListener("click", async () => {
   const modelos = [...document.querySelectorAll("#modelos-lista input:checked")].map((c) => c.value).slice(0, 3);
   if (!modelos.length) return status("Selecione ao menos um modelo.");
   const runs = +document.getElementById("runs").value;
+  const modo = document.getElementById("modo").value;
   const btn = document.getElementById("btn-rodar");
   btn.disabled = true;
 
@@ -503,10 +604,14 @@ document.getElementById("btn-rodar").addEventListener("click", async () => {
     for (const q of questoes) {
       const letras = [], tempos = [];
       for (let i = 0; i < runs; i++) {
-        status(`${modelo} · ${q.id} · run ${i + 1}/${runs}`);
+        status(`${modelo} · ${q.id} · chamada ${i + 1}/${runs} (ordem ${modo})`);
+        const qv = geraVariante(q, i, modo);
         try {
-          const { letra, s } = await perguntaModelo(modelo, q, 42 + i);
-          letras.push(letra); tempos.push(s); tempo += s;
+          const { letra, s } = await perguntaModelo(modelo, qv, 42 + i);
+          // Normaliza para o espaço de letras original, como faz o runner Python.
+          const texto = letra ? qv.alternativas[letra] : null;
+          letras.push(LETRAS.find((l) => q.alternativas[l] === texto) ?? null);
+          tempos.push(s); tempo += s;
         } catch (e) { letras.push(null); tempos.push(0); }
       }
       const certas = letras.filter((l) => l === q.resposta).length;
@@ -521,7 +626,7 @@ document.getElementById("btn-rodar").addEventListener("click", async () => {
     }
     const total = questoes.length * runs;
     resultados.push({
-      modelo, runs, acuracia: +(acertos / total).toFixed(4), acertos, total,
+      modelo, runs, modo, acuracia: +(acertos / total).toFixed(4), acertos, total,
       latencia_media_s: +(tempo / total).toFixed(3), detalhes,
     });
   }
@@ -529,13 +634,14 @@ document.getElementById("btn-rodar").addEventListener("click", async () => {
   resultados.sort((a, b) => b.acuracia - a.acuracia);
   ULTIMO_VIVO = {
     benchmark_id: BENCH.id, benchmark_versao: BENCH.version,
-    executado_em: new Date().toISOString(), host: host(), runs, metrica: "acuracia", resultados,
+    executado_em: new Date().toISOString(), host: host(), runs, modo, metrica: "acuracia", resultados,
   };
 
   document.getElementById("cartao-vivo").style.display = "";
   document.getElementById("nota-vivo").textContent =
     `${modelos.length} modelo(s) · ${questoes.length} questões (${PERSONALIZADAS.length} suas) · ` +
-    `${runs} repetição(ões) · ${new Date().toLocaleString("pt-BR")}`;
+    `ordem ${modo} · ${runs} chamada(s) por questão · ` +
+    `${modelos.length * questoes.length * runs} chamadas no total · ${new Date().toLocaleString("pt-BR")}`;
   desenhaGrafico(document.getElementById("grafico-vivo"), resultados);
   desenhaMatriz(document.getElementById("tabela-vivo"), ULTIMO_VIVO, questoes);
   status("Concluído.");
@@ -557,6 +663,7 @@ document.getElementById("btn-baixar").addEventListener("click", () => {
   carregaPersonalizadas();
   ligaEditor();
   desenhaQuestoes();
+  importaDoLink();
   sondaOllama();
   try {
     const dados = await (await fetch("results.json")).json();

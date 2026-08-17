@@ -1,0 +1,59 @@
+{
+  "benchmark_id": "piaui-mcq-10",
+  "benchmark_versao": "1.0.0",
+  "gerado_de": {
+    "fixa": {
+      "executado_em": "2026-08-17T05:04:05+00:00",
+      "runs": 1,
+      "modo": "fixa"
+    },
+    "permutada": {
+      "executado_em": "2026-08-17T05:05:29+00:00",
+      "runs": 5,
+      "modo": "ciclica"
+    }
+  },
+  "baseline_aleatorio": 0.2,
+  "chamadas_totais": 180,
+  "ranking": [
+    {
+      "modelo": "llama3.2:3b",
+      "acuracia_fixa": 0.5,
+      "acuracia_permutada": 0.38,
+      "variacao_pp": -12.0,
+      "variacao_relativa": -0.24,
+      "acima_do_acaso_pp": 18.0,
+      "chamadas_fixa": 10,
+      "chamadas_permutada": 50,
+      "letra_mais_escolhida": "B",
+      "concentracao_letra_top": 0.38,
+      "latencia_media_s": 0.749
+    },
+    {
+      "modelo": "qwen3:4b",
+      "acuracia_fixa": 0.4,
+      "acuracia_permutada": 0.36,
+      "variacao_pp": -4.0,
+      "variacao_relativa": -0.1,
+      "acima_do_acaso_pp": 16.0,
+      "chamadas_fixa": 10,
+      "chamadas_permutada": 50,
+      "letra_mais_escolhida": "B",
+      "concentracao_letra_top": 0.28,
+      "latencia_media_s": 0.695
+    },
+    {
+      "modelo": "gemma3:4b",
+      "acuracia_fixa": 0.3,
+      "acuracia_permutada": 0.24,
+      "variacao_pp": -6.0,
+      "variacao_relativa": -0.2,
+      "acima_do_acaso_pp": 4.0,
+      "chamadas_fixa": 10,
+      "chamadas_permutada": 50,
+      "letra_mais_escolhida": "A",
+      "concentracao_letra_top": 0.3,
+      "latencia_media_s": 1.145
+    }
+  ]
+}

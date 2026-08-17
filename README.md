@@ -10,32 +10,35 @@ usado para comparar a **acurácia** de três LLMs pequenos executados localmente
 
 ## Resultados
 
-Os resultados publicados no site são gerados pelo CI (`ubuntu-latest`, CPU), para que qualquer
-pessoa possa reproduzi-los sem hardware específico. `temperature=0`, 3 repetições por questão:
+`temperature=0`. Ordem fixa = 1 chamada por questão; ordem cíclica = 5 chamadas, com o gabarito
+visitando cada posição exatamente uma vez.
 
-| Modelo | Família | Params | Acurácia (ordem fixa) | Acurácia (permutada) | Δ |
-|---|---|---|---|---|---|
-| `llama3.2:3b` | Meta | 3,2 B | **50,0 %** | **50,0 %** | 0,0 p.p. |
-| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 26,7 % | −13,3 p.p. |
-| `gemma3:4b`   | Google | 4,3 B | 40,0 % | 26,7 % | −13,3 p.p. |
+| Modelo | Família | Params | Acurácia (fixa) | Acurácia (cíclica) | Δ | Acima do acaso |
+|---|---|---|---|---|---|---|
+| `llama3.2:3b` | Meta | 3,2 B | 50,0 % | **38,0 %** | −12,0 p.p. | +18,0 p.p. |
+| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 36,0 % | −4,0 p.p. | +16,0 p.p. |
+| `gemma3:4b`   | Google | 4,3 B | 30,0 % | 24,0 % | −6,0 p.p. | +4,0 p.p. |
 
-Baseline aleatório: **20 %**.
+Baseline aleatório: **20 %**. Latência: 0,35–0,70 s por resposta na RTX 4070; 1,7–5,1 s na CPU do
+runner do GitHub.
 
-Latência por resposta: 1,7–2,9 s na CPU do runner; 0,34–0,82 s numa RTX 4070 Laptop.
-
-> **Nota de reprodutibilidade:** com `temperature=0` e `seed` fixa a execução é determinística
-> *na mesma máquina*, mas CPU e CUDA produzem aritmética de ponto flutuante levemente diferente.
-> Numa RTX 4070 o `gemma3:4b` marcou 30 % em vez de 40 % na ordem fixa — uma questão de diferença.
-> Com 10 itens, isso é ruído esperado, e é justamente por isso que a leitura importante é a
-> **queda sob permutação**, que se manteve nos dois ambientes.
+> **A cíclica é a medida boa.** Os três modelos caem quando a posição do gabarito deixa de ajudar,
+> e o `llama3.2:3b` — que parecia imune sob permutação aleatória com 3 amostras — cai 12 p.p. sob
+> cobertura completa das 5 posições. A amostragem aleatória subestimava o viés porque não garantia
+> que cada posição fosse testada. Sob a medida corrigida, a distância entre `llama3.2:3b` e
+> `qwen3:4b` cai de 10 p.p. para 2 p.p., que com 10 questões **não é diferença significativa**.
+>
+> **Reprodutibilidade:** `temperature=0` e `seed` fixa dão determinismo *na mesma máquina*, mas CPU
+> e CUDA fazem aritmética de ponto flutuante diferente — o `gemma3:4b` já variou uma questão entre
+> os dois ambientes. Com 10 itens isso é ruído esperado.
 
 ### O achado principal
 
-A comparação entre as duas colunas é mais informativa que a acurácia isolada.
-Ao **permutar as alternativas** a cada repetição, `qwen3:4b` e `gemma3:4b` caem 13 p.p. cada —
-ficando a ~7 p.p. do acaso —, enquanto `llama3.2:3b` não se move.
+A comparação entre as duas colunas é mais informativa que a acurácia isolada. **Os três modelos
+caem** quando o gabarito deixa de ficar parado numa posição — de 4 a 12 pontos percentuais.
+Parte do que a ordem fixa media não era conhecimento, e sim **viés de seleção posicional**.
 
-Isso indica **viés de seleção posicional**, não conhecimento. O caso mais claro:
+O caso mais claro:
 
 ```
 $ ollama run gemma3:4b "Qual é a capital do Piauí? Responda em uma palavra."
@@ -45,10 +48,10 @@ Teresina.                       # ✅ sabe a resposta
 → A                             # ❌ escolhe a primeira alternativa
 ```
 
-A distribuição das letras confirma o padrão. Como a permutação espalha o gabarito uniformemente
-pelas cinco posições, um modelo sem viés responderia ~20 % em cada letra; na prática, `qwen3:4b`
-escolheu "B" em 40 % das respostas e `gemma3:4b` escolheu "C" em 40 %. Nenhum dos três chegou a
-escolher "D" mais de 7 % das vezes. É o efeito descrito por
+A distribuição das letras confirma o padrão. Sob rotação cíclica o gabarito ocupa cada posição
+exatamente 20 % das vezes, então um modelo sem viés responderia ~20 % em cada letra; na prática,
+`llama3.2:3b` escolheu "B" em 38 % das respostas, `gemma3:4b` escolheu "A" em 30 % e `qwen3:4b`
+escolheu "B" em 28 %. É o efeito descrito por
 [Zheng et al. (2023)](https://arxiv.org/abs/2309.05463), e é a razão de o projeto reportar
 as duas medidas lado a lado.
 
@@ -101,8 +104,9 @@ ollama pull qwen3:4b
 ollama pull gemma3:4b
 
 # 2. rodar o benchmark (sem dependências além do Python 3.10+)
-python3 bench/run_bench.py --runs 3
-python3 bench/run_bench.py --runs 5 --shuffle --out docs/results_shuffle.json
+python3 bench/run_bench.py --modo fixa    --runs 1
+python3 bench/run_bench.py --modo ciclica --runs 5 --out docs/results_shuffle.json
+python3 bench/consolidar.py
 
 # 3. abrir a aplicação
 python3 -m http.server -d docs 8000    # http://localhost:8000
@@ -112,9 +116,10 @@ Opções do runner:
 
 ```
 --models M1 M2 M3   modelos a avaliar (default: llama3.2:3b qwen3:4b gemma3:4b)
---runs N            repetições por questão (default: 3)
---shuffle           permuta as alternativas a cada repetição
+--modo MODO         ordem das alternativas: fixa (default), ciclica ou aleatoria
+--runs N            chamadas por questão (use 1 com fixa, 5 com ciclica)
 --host URL          endereço do Ollama (default: http://localhost:11434)
+--timeout SEG       timeout por chamada (default: 180)
 --out CAMINHO       arquivo JSON de saída
 ```
 
@@ -124,9 +129,11 @@ Opções do runner:
 
 ```
 bench/run_bench.py        runner CLI → gera docs/results*.json
+bench/consolidar.py       funde as duas passadas → summary.json + summary.csv
 docs/benchmark.json       as 10 questões, gabarito e fonte de cada uma
-docs/results.json         resultados com ordem fixa das alternativas
-docs/results_shuffle.json resultados com alternativas permutadas
+docs/results.json         passada de ordem fixa (1 chamada por questão)
+docs/results_shuffle.json passada de ordem cíclica (5 chamadas por questão)
+docs/summary.json|.csv    consolidado com variação em p.p. e viés por letra
 docs/index.html|app.js|style.css   aplicação web (GitHub Pages)
 ```
 
@@ -137,7 +144,7 @@ O site é 100 % estático — sem build, sem dependências, sem CDN. Cinco abas:
 | **Resultados** | acurácia por modelo, robustez sob permutação, distribuição de letras, acerto por questão |
 | **Executar ao vivo** | roda o benchmark no navegador contra o Ollama local e exporta o `results.json` |
 | **Questões** | as 10 oficiais + as suas, com gabarito e fonte |
-| **Adicionar questões** | editor com validação, persistência local, import/export JSON |
+| **Adicionar questões** | editor com validação, persistência local, compartilhamento por link, import de vários arquivos |
 | **Metodologia** | como a acurácia é medida e as referências |
 
 ---
@@ -157,9 +164,10 @@ O que o editor faz:
 - **Gera IDs** livres de colisão (`C01`, `C02`, …), distintos dos oficiais (`Q01`–`Q10`).
 - **Entra na execução ao vivo automaticamente**: o benchmark passa a rodar sobre o conjunto
   oficial + suas questões, e a tabela de acertos cresce junto.
-- **Importa** um JSON existente (array de questões ou um `benchmark.json` inteiro),
-  descartando itens malformados e os que já são oficiais.
+- **Importa vários arquivos JSON de uma vez** (array de questões ou `benchmark.json` inteiro),
+  deduplicando por enunciado e relatando quantas entraram, repetiram ou falharam.
 - **Exporta** o `benchmark.json` completo, já sem os campos internos do editor.
+- **Gera um link** com as questões codificadas no fragmento da URL, para enviar a quem vai executar.
 
 ### 2. Compartilhando com outros usuários
 
@@ -194,7 +202,45 @@ O campo `fonte` é o que torna isso auditável.
 Não recomendo pular para o backend antes de o gargalo ser real: ele adiciona autenticação,
 moderação de spam e custo de operação para resolver um problema que hoje o GitHub resolve de graça.
 
-### 3. Pelo repositório (persistência definitiva)
+### 3. Em sala de aula (turma + host único)
+
+Cenário: os alunos criam questões nos próprios navegadores e o professor executa o Ollama ao vivo.
+O gargalo é coletar as questões sem exigir conta do GitHub de cada aluno. Dois caminhos, ambos
+sem servidor:
+
+**Link (mais rápido, nada para instalar).** O aluno clica em **Gerar link com minhas questões**:
+as questões viajam codificadas no fragmento da URL (`#q=…`), que o navegador nunca envia a servidor
+algum. O aluno cola o link no chat da turma; o professor abre e confirma a importação. Uma questão
+dá um link de ~450 caracteres; acima de ~12 KB o botão cai para download de arquivo.
+
+**Arquivo (para turma grande).** Cada aluno usa **Baixar benchmark.json completo**; o professor
+seleciona **todos os arquivos de uma vez** em *Importar JSON*. A importação deduplica por enunciado
+contra o que já está ativo e relata o que entrou:
+
+```
+12 arquivo(s) · 15 questões lidas → 11 adicionadas (3 repetidas, 1 inválidas)
+```
+
+Depois, na aba **Executar ao vivo**, com o Ollama rodando na máquina do professor:
+selecionar os 3 modelos, ordem **cíclica**, 5 chamadas, executar. O resultado aparece projetado
+e o botão **Baixar results.json** salva a evidência da aula.
+
+Dimensionamento, com os tempos medidos na RTX 4070 (0,35–0,70 s por resposta):
+
+| Questões | Modelos | Chamadas (fixa + cíclica) | Tempo aproximado |
+|---|---|---|---|
+| 10 (só as oficiais) | 3 | 180 | ~2 min |
+| 25 (10 + 15 da turma) | 3 | 450 | ~4 min |
+| 40 | 3 | 720 | ~7 min |
+
+Cabe numa aula com folga. Para projetar, rode primeiro com **ordem fixa / 1 chamada** (6× mais
+rápido) e depois a cíclica — o contraste entre as duas passadas é a parte interessante da demonstração.
+
+**Um cuidado:** questões escritas na hora não passaram por revisão de fonte. Vale rodar a aula com
+elas normalmente e só depois abrir PR para as que resistirem à checagem do gabarito — senão a
+métrica oficial fica contaminada por gabarito errado, que é indistinguível de modelo ruim.
+
+### 4. Pelo repositório (persistência definitiva)
 
 O GitHub Pages serve arquivos estáticos e **não pode gravar de volta no repositório** —
 por isso o editor não "salva no site". O caminho oficial é:
@@ -204,8 +250,9 @@ por isso o editor não "salva no site". O caminho oficial é:
 mv ~/Downloads/benchmark.json docs/benchmark.json
 
 # 2. regenere os resultados com o conjunto novo
-python3 bench/run_bench.py --runs 3
-python3 bench/run_bench.py --runs 5 --shuffle --out docs/results_shuffle.json
+python3 bench/run_bench.py --modo fixa    --runs 1
+python3 bench/run_bench.py --modo ciclica --runs 5 --out docs/results_shuffle.json
+python3 bench/consolidar.py
 
 # 3. abra um Pull Request
 ```
@@ -241,7 +288,7 @@ Medido, não estimado — runner `ubuntu-latest`, 4 vCPU, sem GPU:
 | Configuração | Tempo total | Latência por resposta |
 |---|---|---|
 | 1 modelo × 1 repetição | 2 min 17 s | 4,4 s |
-| 3 modelos × 3 repetições (fixa + permutada) | 9 min 46 s | 1,7–5,1 s |
+| 3 modelos, fixa (1) + cíclica (5) | ~10 min | 1,7–5,1 s |
 
 Comparação: os mesmos 3 modelos na RTX 4070 levam 0,34–0,82 s por resposta. A CPU do runner é
 ~10× mais lenta, e ainda assim cabe folgadamente no limite de 6 h por job. **Para modelos até 4B,
@@ -261,6 +308,68 @@ GPU do mantenedor — mas com fila, autenticação, logs, histórico e cancelame
 GitHub, e sem expor o Ollama à internet. O host liga a máquina quando quiser; os jobs esperam na fila.
 
 ---
+
+## Orçamento de chamadas: quantas vezes cada pergunta é feita
+
+Duas passadas independentes, cada uma com seu arquivo de resultados. **Por questão e por modelo:**
+
+| Passada | Chamadas | O que muda entre elas | Arquivo |
+|---|---|---|---|
+| Ordem fixa | **1** | nada — medição única | `docs/results.json` |
+| Ordem cíclica | **5** | a lista de alternativas rotaciona 1 posição por chamada | `docs/results_shuffle.json` |
+| **Total** | **6** | — | `docs/summary.json` consolida |
+
+Com 3 modelos: 18 chamadas por questão, **180 no benchmark de 10 questões**.
+
+Na passada cíclica, a rotação faz o gabarito visitar cada uma das cinco letras exatamente uma vez.
+Não é amostragem aleatória de permutações — é cobertura exaustiva das posições, o que elimina a
+sorte no sorteio.
+
+### Por que a ordem fixa usa 1 chamada, e não 3
+
+Com `temperature=0` a decodificação é gulosa: o mesmo prompt produz sempre a mesma saída, e a
+`seed` não muda nada. Isso foi medido, não assumido — na versão anterior, com 3 repetições de
+ordem fixa, **as 3 respostas foram idênticas em 30 de 30 casos** (3 modelos × 10 questões).
+Era 3× o custo por zero informação. Repetição só informa quando o prompt muda; por isso todo o
+orçamento de repetição foi para as permutações.
+
+O runner avisa se você pedir uma combinação que não faz sentido:
+
+```
+$ python3 bench/run_bench.py --modo fixa --runs 3
+[aviso] modo 'fixa' com --runs 3: o prompt e identico em todas as repeticoes e
+        temperature=0, entao as respostas tendem a ser iguais. Use --runs 1,
+        ou --modo ciclica --runs 5.
+```
+
+## Como as chamadas viram um número
+
+Há **duas agregações diferentes**, e elas discordam de propósito:
+
+| | Regra | Exemplo: 1 acerto em 5 chamadas |
+|---|---|---|
+| **Acurácia** (métrica reportada) | acertos ÷ total de chamadas | contribui **1/5** — acerto parcial conta |
+| **✓/✗ na tabela** (só exibição) | voto majoritário, `acertos > chamadas/2` | exibe **✗** |
+| **Letra exibida** | resposta mais frequente, remapeada para a ordem original | a letra que mais apareceu |
+
+Empate conta como erro no voto majoritário. Um modelo que acerta 2 de 5 posições e erra 3 não
+"sabe pela metade": ele acerta quando o gabarito cai numa posição que ele favorece — exatamente
+o padrão que a passada cíclica expõe e a ordem fixa esconde.
+
+**Variação em p.p.** é subtração direta das duas acurácias: 50% → 38% é **−12,0 pontos
+percentuais**, não −12%. Em variação relativa seria −24%. O consolidador grava as duas formas:
+
+```bash
+$ python3 bench/consolidar.py
+| Modelo | Acurácia (fixa) | Acurácia (cíclica) | Variação | Acima do acaso | Letra dominante |
+|---|---|---|---|---|---|
+| `llama3.2:3b` | 50.0% | 38.0% | -12.0 p.p. | +18.0 p.p. | B (38%) |
+| `qwen3:4b`    | 40.0% | 36.0% |  -4.0 p.p. | +16.0 p.p. | B (28%) |
+| `gemma3:4b`   | 30.0% | 24.0% |  -6.0 p.p. |  +4.0 p.p. | A (30%) |
+```
+
+Saídas: `docs/summary.json` (com `variacao_pp`, `variacao_relativa`, `acima_do_acaso_pp` e a
+concentração na letra dominante) e `docs/summary.csv` para planilha.
 
 ## Como funciona a aquisição de respostas
 
@@ -308,7 +417,7 @@ mede conhecimento, não obediência ao formato.**
 blocos `<think>…</think>` e busca a primeira letra isolada A–E por regex. O fallback existe
 para modelos ou versões do Ollama sem suporte a saída estruturada.
 
-**5. Normalização.** Com `--shuffle`, a letra vem no espaço da permutação daquela repetição.
+**5. Normalização.** Fora do modo `fixa`, a letra vem no espaço da permutação daquela chamada.
 O código a converte de volta para a letra original **buscando o texto da alternativa escolhida**
 no dicionário original — sem isso as respostas não seriam comparáveis entre repetições nem
 entre modelos.
