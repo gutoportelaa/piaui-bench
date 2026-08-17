@@ -10,21 +10,30 @@ usado para comparar a **acurácia** de três LLMs pequenos executados localmente
 
 ## Resultados
 
-Execução real em RTX 4070 Laptop (8 GB), Ollama 0.22, `temperature=0`, 3 repetições por questão:
+Os resultados publicados no site são gerados pelo CI (`ubuntu-latest`, CPU), para que qualquer
+pessoa possa reproduzi-los sem hardware específico. `temperature=0`, 3 repetições por questão:
 
-| Modelo | Família | Params | Acurácia (ordem fixa) | Acurácia (alternativas permutadas) | Latência/resposta |
+| Modelo | Família | Params | Acurácia (ordem fixa) | Acurácia (permutada) | Δ |
 |---|---|---|---|---|---|
-| `llama3.2:3b` | Meta | 3,2 B | **50,0 %** | **48,0 %** | 0,34 s |
-| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 28,0 % | 0,54 s |
-| `gemma3:4b`   | Google | 4,3 B | 30,0 % | 22,0 % | 0,82 s |
+| `llama3.2:3b` | Meta | 3,2 B | **50,0 %** | **50,0 %** | 0,0 p.p. |
+| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 26,7 % | −13,3 p.p. |
+| `gemma3:4b`   | Google | 4,3 B | 40,0 % | 26,7 % | −13,3 p.p. |
 
 Baseline aleatório: **20 %**.
+
+Latência por resposta: 1,7–2,9 s na CPU do runner; 0,34–0,82 s numa RTX 4070 Laptop.
+
+> **Nota de reprodutibilidade:** com `temperature=0` e `seed` fixa a execução é determinística
+> *na mesma máquina*, mas CPU e CUDA produzem aritmética de ponto flutuante levemente diferente.
+> Numa RTX 4070 o `gemma3:4b` marcou 30 % em vez de 40 % na ordem fixa — uma questão de diferença.
+> Com 10 itens, isso é ruído esperado, e é justamente por isso que a leitura importante é a
+> **queda sob permutação**, que se manteve nos dois ambientes.
 
 ### O achado principal
 
 A comparação entre as duas colunas é mais informativa que a acurácia isolada.
-Ao **permutar as alternativas** a cada repetição, `qwen3:4b` cai 12 p.p. e `gemma3:4b`
-cai 8 p.p. — ambos ficando a poucos pontos do acaso —, enquanto `llama3.2:3b` se mantém.
+Ao **permutar as alternativas** a cada repetição, `qwen3:4b` e `gemma3:4b` caem 13 p.p. cada —
+ficando a ~7 p.p. do acaso —, enquanto `llama3.2:3b` não se move.
 
 Isso indica **viés de seleção posicional**, não conhecimento. O caso mais claro:
 
@@ -36,9 +45,10 @@ Teresina.                       # ✅ sabe a resposta
 → A                             # ❌ escolhe a primeira alternativa
 ```
 
-A distribuição das letras escolhidas confirma o padrão: sob permutação, `qwen3:4b`
-escolheu "B" em 44 % das respostas e `gemma3:4b` escolheu "C" em 36 % — longe dos 20 %
-esperados de um modelo sem viés. É o efeito descrito por
+A distribuição das letras confirma o padrão. Como a permutação espalha o gabarito uniformemente
+pelas cinco posições, um modelo sem viés responderia ~20 % em cada letra; na prática, `qwen3:4b`
+escolheu "B" em 40 % das respostas e `gemma3:4b` escolheu "C" em 40 %. Nenhum dos três chegou a
+escolher "D" mais de 7 % das vezes. É o efeito descrito por
 [Zheng et al. (2023)](https://arxiv.org/abs/2309.05463), e é a razão de o projeto reportar
 as duas medidas lado a lado.
 
@@ -151,7 +161,40 @@ O que o editor faz:
   descartando itens malformados e os que já são oficiais.
 - **Exporta** o `benchmark.json` completo, já sem os campos internos do editor.
 
-### 2. Pelo repositório (persistência definitiva)
+### 2. Compartilhando com outros usuários
+
+O site é estático: sem servidor, sem banco, sem sessão. O `localStorage` é privado do navegador —
+**ninguém mais vê suas questões até que elas entrem no repositório.** O repositório *é* o banco de
+dados compartilhado, e o caminho até ele não exige backend algum:
+
+```
+editor → botão "Compartilhar" → issue do GitHub já preenchida
+       → revisão do gabarito contra a fonte
+       → merge em docs/benchmark.json
+       → CI reexecuta o benchmark
+       → results.json commitado → Pages publica para todos
+```
+
+O botão monta uma URL `issues/new?title=…&body=…` com o JSON da questão e as fontes. Não pede
+token, não pede login prévio, não passa por servidor intermediário. Acima de ~7,5 KB de URL
+(muitas questões de uma vez) ele cai para download do JSON, porque URLs longas são truncadas.
+
+A revisão humana entre proposta e merge é deliberada, não burocracia: **um gabarito errado
+contamina a métrica de todos os modelos de uma vez**, e é indistinguível de um modelo ruim.
+O campo `fonte` é o que torna isso auditável.
+
+**Se o volume crescer**, as alternativas com backend, em ordem de esforço:
+
+| Opção | Custo | Observação |
+|---|---|---|
+| GitHub Issues (atual) | zero | revisão manual; ótimo até dezenas de contribuições |
+| GitHub App / Action que abre PR a partir da issue | zero | automatiza o merge após aprovação com label |
+| Cloudflare Worker + D1, ou Supabase | free tier | fila real de submissões, moderação em UI própria |
+
+Não recomendo pular para o backend antes de o gargalo ser real: ele adiciona autenticação,
+moderação de spam e custo de operação para resolver um problema que hoje o GitHub resolve de graça.
+
+### 3. Pelo repositório (persistência definitiva)
 
 O GitHub Pages serve arquivos estáticos e **não pode gravar de volta no repositório** —
 por isso o editor não "salva no site". O caminho oficial é:
@@ -173,6 +216,49 @@ critério de aceite de uma contribuição.
 **Regra de qualidade dos distratores:** as cinco alternativas devem ser plausíveis e do mesmo
 tipo (todas municípios, todos anos, todos rios). Distrator absurdo infla a acurácia e esconde
 o que o modelo realmente sabe.
+
+---
+
+## Quem executa o benchmark: fila de espera ou CI?
+
+A pergunta natural é montar uma fila em que os usuários enfileiram execuções e a máquina do
+"host" (com GPU) processa. **Não recomendo essa arquitetura**, por três motivos concretos:
+
+1. **Disponibilidade.** A fila só anda quando o host está ligado, com o Ollama de pé e a GPU livre.
+   Um usuário que enfileira à noite espera até o host acordar — e não há como prometer prazo.
+2. **O site não tem onde guardar a fila.** GitHub Pages é estático. Uma fila exige backend,
+   e aí o backend passa a ser o problema principal do projeto, não o benchmark.
+3. **Superfície de abuso.** Uma fila anônima que executa inferência na máquina de alguém é um
+   caminho direto para uso indevido de recurso, e exige autenticação e rate limiting para funcionar.
+
+**A fila já existe e é a do GitHub Actions.** O workflow `.github/workflows/benchmark.yml` instala
+o Ollama no runner, baixa os modelos, roda as duas variantes e commita `results.json` de volta.
+Dispara por `workflow_dispatch` (manual, com modelos e repetições como input) ou automaticamente
+em push a `docs/benchmark.json` — ou seja, **questão aceita re-mede tudo sozinha.**
+
+Medido, não estimado — runner `ubuntu-latest`, 4 vCPU, sem GPU:
+
+| Configuração | Tempo total | Latência por resposta |
+|---|---|---|
+| 1 modelo × 1 repetição | 2 min 17 s | 4,4 s |
+| 3 modelos × 3 repetições (fixa + permutada) | 9 min 46 s | 1,7–5,1 s |
+
+Comparação: os mesmos 3 modelos na RTX 4070 levam 0,34–0,82 s por resposta. A CPU do runner é
+~10× mais lenta, e ainda assim cabe folgadamente no limite de 6 h por job. **Para modelos até 4B,
+GPU é conveniência, não requisito.**
+
+### Quando a máquina do host é mesmo necessária
+
+Para modelos que não cabem no runner (14B+, ou multimodais), o caminho correto é um
+[self-hosted runner](https://docs.github.com/actions/hosting-your-own-runners) na máquina com GPU:
+
+```yaml
+runs-on: [self-hosted, gpu]   # em vez de ubuntu-latest
+```
+
+Isso entrega exatamente o que uma "fila para o host" entregaria — jobs enfileirados, executados na
+GPU do mantenedor — mas com fila, autenticação, logs, histórico e cancelamento já resolvidos pelo
+GitHub, e sem expor o Ollama à internet. O host liga a máquina quando quiser; os jobs esperam na fila.
 
 ---
 
