@@ -1,7 +1,7 @@
 {
   "benchmark_id": "piaui-mcq-10",
   "benchmark_versao": "1.0.0",
-  "executado_em": "2026-08-17T05:04:05+00:00",
+  "executado_em": "2026-08-17T05:15:44+00:00",
   "host": "http://localhost:11434",
   "runs": 1,
   "modo": "fixa",
@@ -25,7 +25,7 @@
       ],
       "acertos": 5,
       "total": 10,
-      "latencia_media_s": 0.749,
+      "latencia_media_s": 4.437,
       "detalhes": [
         {
           "questao": "Q01",
@@ -36,7 +36,7 @@
           "resposta_moda": "B",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 4.535,
+          "latencia_media_s": 8.888,
           "erro": null
         },
         {
@@ -48,7 +48,7 @@
           "resposta_moda": "C",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.276,
+          "latencia_media_s": 3.604,
           "erro": null
         },
         {
@@ -60,7 +60,7 @@
           "resposta_moda": "C",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.357,
+          "latencia_media_s": 4.335,
           "erro": null
         },
         {
@@ -72,7 +72,7 @@
           "resposta_moda": "B",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.328,
+          "latencia_media_s": 4.161,
           "erro": null
         },
         {
@@ -84,7 +84,7 @@
           "resposta_moda": "D",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.339,
+          "latencia_media_s": 3.354,
           "erro": null
         },
         {
@@ -96,7 +96,7 @@
           "resposta_moda": "C",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.333,
+          "latencia_media_s": 3.821,
           "erro": null
         },
         {
@@ -108,7 +108,7 @@
           "resposta_moda": "E",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.341,
+          "latencia_media_s": 4.407,
           "erro": null
         },
         {
@@ -120,7 +120,7 @@
           "resposta_moda": "B",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.323,
+          "latencia_media_s": 4.006,
           "erro": null
         },
         {
@@ -132,7 +132,7 @@
           "resposta_moda": "C",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.328,
+          "latencia_media_s": 4.224,
           "erro": null
         },
         {
@@ -144,7 +144,7 @@
           "resposta_moda": "B",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.325,
+          "latencia_media_s": 3.573,
           "erro": null
         }
       ]
@@ -166,7 +166,7 @@
       ],
       "acertos": 4,
       "total": 10,
-      "latencia_media_s": 0.695,
+      "latencia_media_s": 5.903,
       "detalhes": [
         {
           "questao": "Q01",
@@ -177,7 +177,7 @@
           "resposta_moda": "B",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 2.692,
+          "latencia_media_s": 10.65,
           "erro": null
         },
         {
@@ -189,7 +189,7 @@
           "resposta_moda": "A",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.499,
+          "latencia_media_s": 5.137,
           "erro": null
         },
         {
@@ -201,7 +201,7 @@
           "resposta_moda": "A",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.508,
+          "latencia_media_s": 5.638,
           "erro": null
         },
         {
@@ -213,7 +213,7 @@
           "resposta_moda": "D",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.501,
+          "latencia_media_s": 5.45,
           "erro": null
         },
         {
@@ -225,7 +225,7 @@
           "resposta_moda": "D",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.476,
+          "latencia_media_s": 4.558,
           "erro": null
         },
         {
@@ -237,7 +237,7 @@
           "resposta_moda": "A",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.462,
+          "latencia_media_s": 5.784,
           "erro": null
         },
         {
@@ -249,7 +249,7 @@
           "resposta_moda": "C",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.447,
+          "latencia_media_s": 5.856,
           "erro": null
         },
         {
@@ -261,7 +261,7 @@
           "resposta_moda": "B",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.46,
+          "latencia_media_s": 5.781,
           "erro": null
         },
         {
@@ -273,7 +273,7 @@
           "resposta_moda": "D",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.448,
+          "latencia_media_s": 5.612,
           "erro": null
         },
         {
@@ -285,7 +285,7 @@
           "resposta_moda": "B",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.457,
+          "latencia_media_s": 4.567,
           "erro": null
         }
       ]
@@ -301,13 +301,13 @@
         "D": 0,
         "E": 1
       },
-      "acuracia": 0.3,
+      "acuracia": 0.4,
       "acuracia_por_run": [
-        0.3
+        0.4
       ],
-      "acertos": 3,
+      "acertos": 4,
       "total": 10,
-      "latencia_media_s": 1.145,
+      "latencia_media_s": 7.993,
       "detalhes": [
         {
           "questao": "Q01",
@@ -318,7 +318,7 @@
           "resposta_moda": "A",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 5.862,
+          "latencia_media_s": 10.742,
           "erro": null
         },
         {
@@ -330,7 +330,7 @@
           "resposta_moda": "C",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.677,
+          "latencia_media_s": 7.643,
           "erro": null
         },
         {
@@ -342,7 +342,7 @@
           "resposta_moda": "A",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.674,
+          "latencia_media_s": 7.722,
           "erro": null
         },
         {
@@ -354,7 +354,7 @@
           "resposta_moda": "E",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.615,
+          "latencia_media_s": 7.852,
           "erro": null
         },
         {
@@ -366,7 +366,7 @@
           "resposta_moda": "B",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.582,
+          "latencia_media_s": 6.888,
           "erro": null
         },
         {
@@ -378,7 +378,7 @@
           "resposta_moda": "C",
           "acertos": 1,
           "correta": true,
-          "latencia_media_s": 0.598,
+          "latencia_media_s": 8.091,
           "erro": null
         },
         {
@@ -390,19 +390,19 @@
           "resposta_moda": "B",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.63,
+          "latencia_media_s": 8.038,
           "erro": null
         },
         {
           "questao": "Q08",
           "gabarito": "B",
           "respostas": [
-            "A"
+            "B"
           ],
-          "resposta_moda": "A",
-          "acertos": 0,
-          "correta": false,
-          "latencia_media_s": 0.604,
+          "resposta_moda": "B",
+          "acertos": 1,
+          "correta": true,
+          "latencia_media_s": 7.929,
           "erro": null
         },
         {
@@ -414,19 +414,19 @@
           "resposta_moda": "B",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.568,
+          "latencia_media_s": 7.721,
           "erro": null
         },
         {
           "questao": "Q10",
           "gabarito": "E",
           "respostas": [
-            "B"
+            "A"
           ],
-          "resposta_moda": "B",
+          "resposta_moda": "A",
           "acertos": 0,
           "correta": false,
-          "latencia_media_s": 0.638,
+          "latencia_media_s": 7.306,
           "erro": null
         }
       ]
