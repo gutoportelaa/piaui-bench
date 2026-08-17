@@ -23,6 +23,7 @@
       <button role="tab" data-painel="resultados" aria-selected="true">Resultados</button>
       <button role="tab" data-painel="executar" aria-selected="false">Executar ao vivo</button>
       <button role="tab" data-painel="questoes" aria-selected="false">Questões</button>
+      <button role="tab" data-painel="editor" aria-selected="false">Adicionar questões</button>
       <button role="tab" data-painel="sobre" aria-selected="false">Metodologia</button>
     </nav>
   </div>
@@ -121,6 +122,82 @@
       <h2>As 10 questões</h2>
       <p class="nota">Gabarito destacado em verde. Cada item traz a fonte usada para validar a resposta.</p>
       <div id="lista-questoes"></div>
+    </div>
+  </section>
+
+  <!-- ================= EDITOR ================= -->
+  <section class="painel" id="painel-editor">
+    <div class="cartao">
+      <h2>Nova questão</h2>
+      <p class="nota">
+        As questões que você criar ficam salvas neste navegador e entram automaticamente na
+        aba <em>Executar ao vivo</em>. Nada é enviado para servidor algum.
+      </p>
+
+      <form id="form-questao" novalidate>
+        <input type="hidden" id="f-id">
+        <div class="form-grade">
+          <label class="campo larga">Pergunta
+            <textarea id="f-pergunta" rows="2" required
+              placeholder="Qual município piauiense é conhecido como a capital da opala?"></textarea>
+          </label>
+          <label class="campo">Categoria
+            <input id="f-categoria" list="lista-categorias" placeholder="Geografia" required>
+            <datalist id="lista-categorias">
+              <option>Geografia</option><option>História</option>
+              <option>Patrimônio</option><option>Demografia</option>
+              <option>Cultura</option><option>Economia</option>
+            </datalist>
+          </label>
+        </div>
+
+        <fieldset class="alternativas">
+          <legend>Alternativas — marque a correta</legend>
+          <div id="campos-alternativas"></div>
+        </fieldset>
+
+        <label class="campo larga">Fonte <span class="opc">(recomendado: IBGE, ICMBio, IPHAN, lei estadual…)</span>
+          <input id="f-fonte" placeholder="IBGE — Cidades e Estados: Piauí">
+        </label>
+
+        <p class="erro-form" id="erro-form" role="alert"></p>
+        <div class="controles" style="margin-top:14px">
+          <button class="acao" type="submit" id="btn-salvar">Adicionar questão</button>
+          <button class="acao sec" type="button" id="btn-cancelar" style="display:none">Cancelar edição</button>
+          <button class="acao sec" type="button" id="btn-exemplo">Preencher com exemplo</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="cartao">
+      <h2>Suas questões <span class="tag" id="contador-custom">0</span></h2>
+      <p class="nota">Salvas em <code>localStorage</code>. Edite, remova ou exporte para incorporar ao repositório.</p>
+      <div id="lista-custom"></div>
+
+      <div class="controles" style="margin-top:18px">
+        <button class="acao sec" id="btn-exportar">Baixar benchmark.json completo</button>
+        <button class="acao sec" id="btn-copiar">Copiar só as novas (JSON)</button>
+        <label class="acao sec" style="cursor:pointer;font-weight:600">
+          Importar JSON<input type="file" id="f-importar" accept="application/json" hidden>
+        </label>
+        <button class="acao sec" id="btn-limpar">Apagar todas</button>
+      </div>
+      <p class="status" id="status-editor"></p>
+    </div>
+
+    <div class="cartao">
+      <h2>Como incorporar ao benchmark oficial</h2>
+      <p class="nota">O GitHub Pages serve arquivos estáticos e não pode gravar de volta no repositório — a persistência definitiva é via commit.</p>
+      <ol>
+        <li>Crie as questões aqui e clique em <strong>Baixar benchmark.json completo</strong>.</li>
+        <li>Substitua <code>docs/benchmark.json</code> no repositório pelo arquivo baixado.</li>
+        <li>Rode <code>python3 bench/run_bench.py --runs 3</code> para regerar os resultados com o conjunto novo.</li>
+        <li>Abra um Pull Request. O <code>fonte</code> de cada questão é o que permite revisar o gabarito.</li>
+      </ol>
+      <p style="font-size:.88rem;color:var(--text-secondary)">
+        Regra de qualidade: as cinco alternativas devem ser plausíveis e do mesmo tipo (todas municípios,
+        todos anos, todos rios). Distratores absurdos inflam a acurácia e escondem o que o modelo realmente sabe.
+      </p>
     </div>
   </section>
 

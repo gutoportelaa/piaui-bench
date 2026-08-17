@@ -6,8 +6,18 @@ const SERIES = ["var(--series-1)", "var(--series-2)", "var(--series-3)"];
 const corDe = (i) => SERIES[i % SERIES.length];
 const pct = (v) => (v * 100).toFixed(1) + "%";
 
-let BENCH = null;
+const CHAVE_LS = "piauibench.questoes.v1";
+
+let BENCH = null;          // benchmark.json publicado (nunca mutado)
+let PERSONALIZADAS = [];   // questões criadas pelo usuário, salvas no navegador
 let ULTIMO_VIVO = null;
+let EDITANDO = null;       // id da questão em edição, ou null
+
+/* Conjunto efetivamente usado na execução ao vivo e na aba Questões. */
+const questoesAtivas = () => [...BENCH.questoes, ...PERSONALIZADAS];
+
+const escapa = (s) => String(s ?? "").replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 /* ---------------- abas + tema ---------------- */
 document.querySelectorAll(".abas button").forEach((btn) => {
@@ -65,12 +75,12 @@ function desenhaTiles(alvo, dados) {
 }
 
 /* ---------------- matriz questão × modelo ---------------- */
-function desenhaMatriz(tabela, dados) {
+function desenhaMatriz(tabela, dados, questoes = BENCH.questoes) {
   const cab = dados.resultados
     .map((r, i) => `<th class="centro"><span class="chip" style="background:${corDe(i)};display:inline-block"></span> ${r.modelo}</th>`)
     .join("");
 
-  const linhas = BENCH.questoes.map((q) => {
+  const linhas = questoes.map((q) => {
     const celulas = dados.resultados.map((r) => {
       const d = r.detalhes.find((x) => x.questao === q.id);
       if (!d) return `<td class="centro">—</td>`;
@@ -79,7 +89,7 @@ function desenhaMatriz(tabela, dados) {
               <span style="color:var(--text-muted)"> ${d.resposta_moda || "?"}</span></td>`;
     }).join("");
     return `<tr>
-      <td><strong>${q.id}</strong> <span class="tag">${q.categoria}</span><div class="q-txt" style="color:var(--text-secondary);font-size:.85rem;margin-top:3px">${q.pergunta}</div></td>
+      <td><strong>${escapa(q.id)}</strong> <span class="tag">${escapa(q.categoria)}</span><div class="q-txt" style="color:var(--text-secondary);font-size:.85rem;margin-top:3px">${escapa(q.pergunta)}</div></td>
       <td class="centro"><strong>${q.resposta}</strong></td>
       ${celulas}</tr>`;
   }).join("");
@@ -144,15 +154,216 @@ function desenhaLetras(shuf) {
 
 /* ---------------- questões ---------------- */
 function desenhaQuestoes() {
-  document.getElementById("lista-questoes").innerHTML = BENCH.questoes.map((q) => `
+  document.getElementById("lista-questoes").innerHTML = questoesAtivas().map((q) => `
     <div class="questao">
-      <span class="tag">${q.id} · ${q.categoria}</span>
-      <h3>${q.pergunta}</h3>
+      <span class="tag">${escapa(q.id)} · ${escapa(q.categoria)}</span>
+      ${q.personalizada ? '<span class="tag tag-custom">sua questão</span>' : ""}
+      <h3>${escapa(q.pergunta)}</h3>
       <ol type="A">
-        ${LETRAS.map((l) => `<li class="${l === q.resposta ? "certa" : ""}">${q.alternativas[l]}${l === q.resposta ? " ✓" : ""}</li>`).join("")}
+        ${LETRAS.map((l) => `<li class="${l === q.resposta ? "certa" : ""}">${escapa(q.alternativas[l])}${l === q.resposta ? " ✓" : ""}</li>`).join("")}
       </ol>
-      <div class="fonte">Fonte: ${q.fonte}</div>
+      <div class="fonte">Fonte: ${escapa(q.fonte) || "—"}</div>
     </div>`).join("");
+}
+
+/* ---------------- editor de questões ---------------- */
+function carregaPersonalizadas() {
+  try {
+    const bruto = JSON.parse(localStorage.getItem(CHAVE_LS) || "[]");
+    PERSONALIZADAS = Array.isArray(bruto) ? bruto.filter(validaEstrutura) : [];
+  } catch (_) { PERSONALIZADAS = []; }
+}
+
+function salvaPersonalizadas() {
+  localStorage.setItem(CHAVE_LS, JSON.stringify(PERSONALIZADAS));
+  desenhaQuestoes();
+  desenhaCustom();
+}
+
+function validaEstrutura(q) {
+  return q && typeof q.pergunta === "string" && q.alternativas &&
+    LETRAS.every((l) => typeof q.alternativas[l] === "string") && LETRAS.includes(q.resposta);
+}
+
+function proximoId() {
+  const usados = new Set([...BENCH.questoes, ...PERSONALIZADAS].map((q) => q.id));
+  let n = 1;
+  while (usados.has(`C${String(n).padStart(2, "0")}`)) n++;
+  return `C${String(n).padStart(2, "0")}`;
+}
+
+function montaCamposAlternativas() {
+  document.getElementById("campos-alternativas").innerHTML = LETRAS.map((l) => `
+    <div class="linha-alt">
+      <input type="radio" name="correta" value="${l}" id="r-${l}" required>
+      <label class="letra" for="r-${l}">${l}</label>
+      <input type="text" id="f-alt-${l}" placeholder="Alternativa ${l}" required>
+    </div>`).join("");
+}
+
+function preencheForm(q) {
+  document.getElementById("f-id").value = q?.id || "";
+  document.getElementById("f-pergunta").value = q?.pergunta || "";
+  document.getElementById("f-categoria").value = q?.categoria || "";
+  document.getElementById("f-fonte").value = q?.fonte || "";
+  LETRAS.forEach((l) => {
+    document.getElementById(`f-alt-${l}`).value = q?.alternativas?.[l] || "";
+    document.getElementById(`r-${l}`).checked = q?.resposta === l;
+  });
+  EDITANDO = q?.id || null;
+  document.getElementById("btn-salvar").textContent = q ? "Salvar alterações" : "Adicionar questão";
+  document.getElementById("btn-cancelar").style.display = q ? "" : "none";
+  document.getElementById("erro-form").textContent = "";
+}
+
+function leForm() {
+  const alternativas = Object.fromEntries(
+    LETRAS.map((l) => [l, document.getElementById(`f-alt-${l}`).value.trim()]));
+  return {
+    id: EDITANDO || proximoId(),
+    categoria: document.getElementById("f-categoria").value.trim() || "Geral",
+    pergunta: document.getElementById("f-pergunta").value.trim(),
+    alternativas,
+    resposta: document.querySelector('input[name="correta"]:checked')?.value || null,
+    fonte: document.getElementById("f-fonte").value.trim(),
+    personalizada: true,
+  };
+}
+
+function valida(q) {
+  if (q.pergunta.length < 10) return "Escreva a pergunta (mínimo 10 caracteres).";
+  const vazias = LETRAS.filter((l) => !q.alternativas[l]);
+  if (vazias.length) return `Preencha todas as alternativas — faltam: ${vazias.join(", ")}.`;
+  const textos = LETRAS.map((l) => q.alternativas[l].toLowerCase());
+  if (new Set(textos).size !== 5) return "Há alternativas repetidas — as cinco devem ser distintas.";
+  if (!q.resposta) return "Marque qual alternativa é a correta.";
+  return null;
+}
+
+function desenhaCustom() {
+  const alvo = document.getElementById("lista-custom");
+  document.getElementById("contador-custom").textContent = PERSONALIZADAS.length;
+  if (!PERSONALIZADAS.length) {
+    alvo.innerHTML = `<p class="nota" style="margin:0">Nenhuma questão sua ainda. As 10 oficiais continuam valendo.</p>`;
+    return;
+  }
+  alvo.innerHTML = PERSONALIZADAS.map((q) => `
+    <div class="questao">
+      <div class="linha-topo-custom">
+        <span><span class="tag">${escapa(q.id)} · ${escapa(q.categoria)}</span></span>
+        <span>
+          <button class="acao sec mini" data-editar="${escapa(q.id)}">Editar</button>
+          <button class="acao sec mini" data-remover="${escapa(q.id)}">Remover</button>
+        </span>
+      </div>
+      <h3>${escapa(q.pergunta)}</h3>
+      <ol type="A">
+        ${LETRAS.map((l) => `<li class="${l === q.resposta ? "certa" : ""}">${escapa(q.alternativas[l])}${l === q.resposta ? " ✓" : ""}</li>`).join("")}
+      </ol>
+      ${q.fonte ? `<div class="fonte">Fonte: ${escapa(q.fonte)}</div>` : ""}
+    </div>`).join("");
+
+  alvo.querySelectorAll("[data-editar]").forEach((b) => b.addEventListener("click", () => {
+    preencheForm(PERSONALIZADAS.find((q) => q.id === b.dataset.editar));
+    document.getElementById("f-pergunta").scrollIntoView({ behavior: "smooth", block: "center" });
+  }));
+  alvo.querySelectorAll("[data-remover]").forEach((b) => b.addEventListener("click", () => {
+    if (!confirm(`Remover a questão ${b.dataset.remover}?`)) return;
+    PERSONALIZADAS = PERSONALIZADAS.filter((q) => q.id !== b.dataset.remover);
+    if (EDITANDO === b.dataset.remover) preencheForm(null);
+    salvaPersonalizadas();
+  }));
+}
+
+function baixa(nome, obj) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" }));
+  a.download = nome;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function ligaEditor() {
+  montaCamposAlternativas();
+  preencheForm(null);
+  desenhaCustom();
+  const aviso = (msg) => (document.getElementById("status-editor").textContent = msg);
+
+  document.getElementById("form-questao").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const q = leForm();
+    const erro = valida(q);
+    if (erro) return (document.getElementById("erro-form").textContent = erro);
+    const idx = PERSONALIZADAS.findIndex((x) => x.id === q.id);
+    if (idx >= 0) PERSONALIZADAS[idx] = q; else PERSONALIZADAS.push(q);
+    salvaPersonalizadas();
+    preencheForm(null);
+    aviso(`Questão ${q.id} salva. Total ativo: ${questoesAtivas().length} questões.`);
+  });
+
+  document.getElementById("btn-cancelar").addEventListener("click", () => preencheForm(null));
+
+  document.getElementById("btn-exemplo").addEventListener("click", () => {
+    preencheForm({
+      categoria: "Cultura",
+      pergunta: "Qual município piauiense é conhecido como a capital brasileira da opala?",
+      alternativas: { A: "Piripiri", B: "Pedro II", C: "Campo Maior", D: "Barras", E: "Valença do Piauí" },
+      resposta: "B",
+      fonte: "Governo do Estado do Piauí — polo gemológico de Pedro II",
+    });
+    EDITANDO = null;
+    document.getElementById("btn-salvar").textContent = "Adicionar questão";
+    document.getElementById("btn-cancelar").style.display = "none";
+  });
+
+  document.getElementById("btn-exportar").addEventListener("click", () => {
+    baixa("benchmark.json", {
+      ...BENCH,
+      version: BENCH.version + "+local",
+      questoes: questoesAtivas().map(({ personalizada, ...q }) => q),
+    });
+    aviso("benchmark.json baixado — substitua docs/benchmark.json no repositório.");
+  });
+
+  document.getElementById("btn-copiar").addEventListener("click", async () => {
+    const texto = JSON.stringify(PERSONALIZADAS.map(({ personalizada, ...q }) => q), null, 2);
+    try {
+      await navigator.clipboard.writeText(texto);
+      aviso(`${PERSONALIZADAS.length} questão(ões) copiada(s) para a área de transferência.`);
+    } catch (_) {
+      baixa("questoes-novas.json", PERSONALIZADAS.map(({ personalizada, ...q }) => q));
+      aviso("Sem permissão de clipboard — baixei como arquivo.");
+    }
+  });
+
+  document.getElementById("f-importar").addEventListener("change", async (ev) => {
+    const arquivo = ev.target.files[0];
+    if (!arquivo) return;
+    try {
+      const dados = JSON.parse(await arquivo.text());
+      const lista = Array.isArray(dados) ? dados : dados.questoes || [];
+      const validas = lista.filter(validaEstrutura);
+      const oficiais = new Set(BENCH.questoes.map((q) => JSON.stringify([q.pergunta, q.resposta])));
+      const novas = validas
+        .filter((q) => !oficiais.has(JSON.stringify([q.pergunta, q.resposta])))
+        .map((q) => ({ ...q, personalizada: true }));
+      // Reatribui ids para não colidir com as oficiais nem entre si.
+      novas.forEach((q) => { q.id = proximoId(); PERSONALIZADAS.push(q); });
+      salvaPersonalizadas();
+      aviso(`Importadas ${novas.length} de ${lista.length} questões (${lista.length - validas.length} inválidas, ${validas.length - novas.length} já oficiais).`);
+    } catch (e) {
+      aviso("Arquivo inválido: " + e.message);
+    }
+    ev.target.value = "";
+  });
+
+  document.getElementById("btn-limpar").addEventListener("click", () => {
+    if (!PERSONALIZADAS.length || !confirm(`Apagar as ${PERSONALIZADAS.length} questões salvas neste navegador?`)) return;
+    PERSONALIZADAS = [];
+    preencheForm(null);
+    salvaPersonalizadas();
+    aviso("Questões locais apagadas. As 10 oficiais continuam.");
+  });
 }
 
 /* ---------------- execução ao vivo ---------------- */
@@ -233,11 +444,12 @@ document.getElementById("btn-rodar").addEventListener("click", async () => {
   const btn = document.getElementById("btn-rodar");
   btn.disabled = true;
 
+  const questoes = questoesAtivas();
   const resultados = [];
   for (const modelo of modelos) {
     const detalhes = [];
     let tempo = 0, acertos = 0;
-    for (const q of BENCH.questoes) {
+    for (const q of questoes) {
       const letras = [], tempos = [];
       for (let i = 0; i < runs; i++) {
         status(`${modelo} · ${q.id} · run ${i + 1}/${runs}`);
@@ -256,7 +468,7 @@ document.getElementById("btn-rodar").addEventListener("click", async () => {
         latencia_media_s: +(tempos.reduce((a, b) => a + b, 0) / runs).toFixed(3),
       });
     }
-    const total = BENCH.questoes.length * runs;
+    const total = questoes.length * runs;
     resultados.push({
       modelo, runs, acuracia: +(acertos / total).toFixed(4), acertos, total,
       latencia_media_s: +(tempo / total).toFixed(3), detalhes,
@@ -271,9 +483,10 @@ document.getElementById("btn-rodar").addEventListener("click", async () => {
 
   document.getElementById("cartao-vivo").style.display = "";
   document.getElementById("nota-vivo").textContent =
-    `${modelos.length} modelo(s) · ${runs} repetição(ões) por questão · ${new Date().toLocaleString("pt-BR")}`;
+    `${modelos.length} modelo(s) · ${questoes.length} questões (${PERSONALIZADAS.length} suas) · ` +
+    `${runs} repetição(ões) · ${new Date().toLocaleString("pt-BR")}`;
   desenhaGrafico(document.getElementById("grafico-vivo"), resultados);
-  desenhaMatriz(document.getElementById("tabela-vivo"), ULTIMO_VIVO);
+  desenhaMatriz(document.getElementById("tabela-vivo"), ULTIMO_VIVO, questoes);
   status("Concluído.");
   btn.disabled = false;
 });
@@ -290,6 +503,8 @@ document.getElementById("btn-baixar").addEventListener("click", () => {
 /* ---------------- boot ---------------- */
 (async function init() {
   BENCH = await (await fetch("benchmark.json")).json();
+  carregaPersonalizadas();
+  ligaEditor();
   desenhaQuestoes();
   try {
     const dados = await (await fetch("results.json")).json();

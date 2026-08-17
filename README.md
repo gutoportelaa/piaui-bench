@@ -120,9 +120,120 @@ docs/results_shuffle.json resultados com alternativas permutadas
 docs/index.html|app.js|style.css   aplicação web (GitHub Pages)
 ```
 
-O site é 100 % estático — sem build, sem dependências, sem CDN.
-A aba **Executar ao vivo** roda o benchmark no navegador contra o Ollama da própria máquina
-(nada sai do computador) e permite baixar o `results.json` gerado.
+O site é 100 % estático — sem build, sem dependências, sem CDN. Cinco abas:
+
+| Aba | O que faz |
+|---|---|
+| **Resultados** | acurácia por modelo, robustez sob permutação, distribuição de letras, acerto por questão |
+| **Executar ao vivo** | roda o benchmark no navegador contra o Ollama local e exporta o `results.json` |
+| **Questões** | as 10 oficiais + as suas, com gabarito e fonte |
+| **Adicionar questões** | editor com validação, persistência local, import/export JSON |
+| **Metodologia** | como a acurácia é medida e as referências |
+
+---
+
+## Adicionando novas questões
+
+Há dois caminhos, e eles convergem no mesmo `docs/benchmark.json`.
+
+### 1. Pela interface (aba "Adicionar questões")
+
+Formulário com pergunta, categoria, as cinco alternativas, seleção do gabarito e fonte.
+O que o editor faz:
+
+- **Valida** antes de salvar: pergunta com ≥ 10 caracteres, as cinco alternativas preenchidas
+  e distintas entre si, e exatamente um gabarito marcado.
+- **Persiste** em `localStorage` — as questões sobrevivem ao reload, e nada trafega para servidor.
+- **Gera IDs** livres de colisão (`C01`, `C02`, …), distintos dos oficiais (`Q01`–`Q10`).
+- **Entra na execução ao vivo automaticamente**: o benchmark passa a rodar sobre o conjunto
+  oficial + suas questões, e a tabela de acertos cresce junto.
+- **Importa** um JSON existente (array de questões ou um `benchmark.json` inteiro),
+  descartando itens malformados e os que já são oficiais.
+- **Exporta** o `benchmark.json` completo, já sem os campos internos do editor.
+
+### 2. Pelo repositório (persistência definitiva)
+
+O GitHub Pages serve arquivos estáticos e **não pode gravar de volta no repositório** —
+por isso o editor não "salva no site". O caminho oficial é:
+
+```bash
+# 1. exporte pelo editor e substitua o arquivo
+mv ~/Downloads/benchmark.json docs/benchmark.json
+
+# 2. regenere os resultados com o conjunto novo
+python3 bench/run_bench.py --runs 3
+python3 bench/run_bench.py --runs 5 --shuffle --out docs/results_shuffle.json
+
+# 3. abra um Pull Request
+```
+
+O campo `fonte` de cada questão é o que torna o gabarito revisável — é o principal
+critério de aceite de uma contribuição.
+
+**Regra de qualidade dos distratores:** as cinco alternativas devem ser plausíveis e do mesmo
+tipo (todas municípios, todos anos, todos rios). Distrator absurdo infla a acurácia e esconde
+o que o modelo realmente sabe.
+
+---
+
+## Como funciona a aquisição de respostas
+
+Pipeline idêntico no runner Python (`bench/run_bench.py`) e no navegador (`docs/app.js`) —
+por isso os dois produzem os mesmos números.
+
+**1. Montagem do prompt.** *System prompt* fixo em português definindo o papel e o formato,
+mais a questão com as alternativas rotuladas A–E:
+
+```
+Você é um especialista em geografia, história e cultura do Estado do Piauí, Brasil.
+Responda somente com a letra da alternativa correta (A, B, C, D ou E), sem explicação.
+---
+Qual é a atual capital do Estado do Piauí?
+
+A) Parnaíba
+B) Teresina
+...
+Responda apenas com a letra da alternativa correta.
+```
+
+**2. Chamada.** `POST /api/chat` do Ollama, `stream: false`, com:
+
+| Parâmetro | Valor | Por quê |
+|---|---|---|
+| `temperature` | `0` | resposta determinística |
+| `top_p` | `1` | sem truncamento de cauda |
+| `seed` | `42 + r` | reprodutível, mas varia entre repetições |
+| `num_predict` | `64` | a resposta é uma letra; corta divagação |
+| `think` | `false` | desliga o raciocínio do Qwen3 (com *fallback* se o modelo não aceitar o campo) |
+| `format` | schema JSON | restringe a saída ao conjunto válido |
+
+**3. Restrição da saída (o ponto central).** O `format` do Ollama aplica *grammar-constrained
+decoding*: o modelo é obrigado a emitir uma das cinco letras.
+
+```json
+{"type":"object","properties":{"resposta":{"type":"string","enum":["A","B","C","D","E"]}},"required":["resposta"]}
+```
+
+Sem isso, uma resposta como *"A capital é Teresina, alternativa B"* exigiria heurística de parsing,
+e uma falha de formatação seria contada como erro de conhecimento. Com a restrição, **a acurácia
+mede conhecimento, não obediência ao formato.**
+
+**4. Extração com fallback.** `extrai_letra()` tenta `JSON.parse` primeiro; se falhar, remove
+blocos `<think>…</think>` e busca a primeira letra isolada A–E por regex. O fallback existe
+para modelos ou versões do Ollama sem suporte a saída estruturada.
+
+**5. Normalização.** Com `--shuffle`, a letra vem no espaço da permutação daquela repetição.
+O código a converte de volta para a letra original **buscando o texto da alternativa escolhida**
+no dicionário original — sem isso as respostas não seriam comparáveis entre repetições nem
+entre modelos.
+
+**6. Agregação.** Por questão: lista de respostas, moda, nº de acertos e latência média.
+`correta = acertos > runs/2` (voto majoritário). Global: acurácia sobre *todas* as chamadas,
+acurácia por repetição, latência média e a distribuição das letras escolhidas — que é o
+insumo da análise de viés posicional.
+
+Erros de rede, timeout ou modelo ausente viram `null` (contado como erro) com a mensagem
+registrada em `detalhes[].erro`, em vez de derrubar a execução inteira.
 
 ---
 
