@@ -1,0 +1,500 @@
+{
+  "benchmark_id": "piaui-mcq-10",
+  "benchmark_versao": "1.0.0",
+  "executado_em": "2026-08-17T02:56:26+00:00",
+  "host": "http://localhost:11434",
+  "runs": 3,
+  "shuffle": false,
+  "metrica": "acuracia",
+  "resultados": [
+    {
+      "modelo": "llama3.2:3b",
+      "runs": 3,
+      "shuffle": false,
+      "distribuicao_letras": {
+        "A": 0,
+        "B": 12,
+        "C": 12,
+        "D": 3,
+        "E": 3
+      },
+      "acuracia": 0.5,
+      "acuracia_por_run": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "acertos": 15,
+      "total": 30,
+      "latencia_media_s": 0.339,
+      "detalhes": [
+        {
+          "questao": "Q01",
+          "gabarito": "B",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.452,
+          "erro": null
+        },
+        {
+          "questao": "Q02",
+          "gabarito": "C",
+          "respostas": [
+            "C",
+            "C",
+            "C"
+          ],
+          "resposta_moda": "C",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.254,
+          "erro": null
+        },
+        {
+          "questao": "Q03",
+          "gabarito": "A",
+          "respostas": [
+            "C",
+            "C",
+            "C"
+          ],
+          "resposta_moda": "C",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.33,
+          "erro": null
+        },
+        {
+          "questao": "Q04",
+          "gabarito": "D",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.325,
+          "erro": null
+        },
+        {
+          "questao": "Q05",
+          "gabarito": "C",
+          "respostas": [
+            "D",
+            "D",
+            "D"
+          ],
+          "resposta_moda": "D",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.329,
+          "erro": null
+        },
+        {
+          "questao": "Q06",
+          "gabarito": "C",
+          "respostas": [
+            "C",
+            "C",
+            "C"
+          ],
+          "resposta_moda": "C",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.328,
+          "erro": null
+        },
+        {
+          "questao": "Q07",
+          "gabarito": "A",
+          "respostas": [
+            "E",
+            "E",
+            "E"
+          ],
+          "resposta_moda": "E",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.333,
+          "erro": null
+        },
+        {
+          "questao": "Q08",
+          "gabarito": "B",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.344,
+          "erro": null
+        },
+        {
+          "questao": "Q09",
+          "gabarito": "C",
+          "respostas": [
+            "C",
+            "C",
+            "C"
+          ],
+          "resposta_moda": "C",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.343,
+          "erro": null
+        },
+        {
+          "questao": "Q10",
+          "gabarito": "E",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.357,
+          "erro": null
+        }
+      ]
+    },
+    {
+      "modelo": "qwen3:4b",
+      "runs": 3,
+      "shuffle": false,
+      "distribuicao_letras": {
+        "A": 9,
+        "B": 9,
+        "C": 3,
+        "D": 9,
+        "E": 0
+      },
+      "acuracia": 0.4,
+      "acuracia_por_run": [
+        0.4,
+        0.4,
+        0.4
+      ],
+      "acertos": 12,
+      "total": 30,
+      "latencia_media_s": 0.539,
+      "detalhes": [
+        {
+          "questao": "Q01",
+          "gabarito": "B",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 1.335,
+          "erro": null
+        },
+        {
+          "questao": "Q02",
+          "gabarito": "C",
+          "respostas": [
+            "A",
+            "A",
+            "A"
+          ],
+          "resposta_moda": "A",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.452,
+          "erro": null
+        },
+        {
+          "questao": "Q03",
+          "gabarito": "A",
+          "respostas": [
+            "A",
+            "A",
+            "A"
+          ],
+          "resposta_moda": "A",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.43,
+          "erro": null
+        },
+        {
+          "questao": "Q04",
+          "gabarito": "D",
+          "respostas": [
+            "D",
+            "D",
+            "D"
+          ],
+          "resposta_moda": "D",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.464,
+          "erro": null
+        },
+        {
+          "questao": "Q05",
+          "gabarito": "C",
+          "respostas": [
+            "D",
+            "D",
+            "D"
+          ],
+          "resposta_moda": "D",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.43,
+          "erro": null
+        },
+        {
+          "questao": "Q06",
+          "gabarito": "C",
+          "respostas": [
+            "A",
+            "A",
+            "A"
+          ],
+          "resposta_moda": "A",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.434,
+          "erro": null
+        },
+        {
+          "questao": "Q07",
+          "gabarito": "A",
+          "respostas": [
+            "C",
+            "C",
+            "C"
+          ],
+          "resposta_moda": "C",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.441,
+          "erro": null
+        },
+        {
+          "questao": "Q08",
+          "gabarito": "B",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.472,
+          "erro": null
+        },
+        {
+          "questao": "Q09",
+          "gabarito": "C",
+          "respostas": [
+            "D",
+            "D",
+            "D"
+          ],
+          "resposta_moda": "D",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.471,
+          "erro": null
+        },
+        {
+          "questao": "Q10",
+          "gabarito": "E",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.459,
+          "erro": null
+        }
+      ]
+    },
+    {
+      "modelo": "gemma3:4b",
+      "runs": 3,
+      "shuffle": false,
+      "distribuicao_letras": {
+        "A": 9,
+        "B": 12,
+        "C": 6,
+        "D": 0,
+        "E": 3
+      },
+      "acuracia": 0.3,
+      "acuracia_por_run": [
+        0.3,
+        0.3,
+        0.3
+      ],
+      "acertos": 9,
+      "total": 30,
+      "latencia_media_s": 0.818,
+      "detalhes": [
+        {
+          "questao": "Q01",
+          "gabarito": "B",
+          "respostas": [
+            "A",
+            "A",
+            "A"
+          ],
+          "resposta_moda": "A",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 1.989,
+          "erro": null
+        },
+        {
+          "questao": "Q02",
+          "gabarito": "C",
+          "respostas": [
+            "C",
+            "C",
+            "C"
+          ],
+          "resposta_moda": "C",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.615,
+          "erro": null
+        },
+        {
+          "questao": "Q03",
+          "gabarito": "A",
+          "respostas": [
+            "A",
+            "A",
+            "A"
+          ],
+          "resposta_moda": "A",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.73,
+          "erro": null
+        },
+        {
+          "questao": "Q04",
+          "gabarito": "D",
+          "respostas": [
+            "E",
+            "E",
+            "E"
+          ],
+          "resposta_moda": "E",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.62,
+          "erro": null
+        },
+        {
+          "questao": "Q05",
+          "gabarito": "C",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.607,
+          "erro": null
+        },
+        {
+          "questao": "Q06",
+          "gabarito": "C",
+          "respostas": [
+            "C",
+            "C",
+            "C"
+          ],
+          "resposta_moda": "C",
+          "acertos": 3,
+          "correta": true,
+          "latencia_media_s": 0.687,
+          "erro": null
+        },
+        {
+          "questao": "Q07",
+          "gabarito": "A",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.665,
+          "erro": null
+        },
+        {
+          "questao": "Q08",
+          "gabarito": "B",
+          "respostas": [
+            "A",
+            "A",
+            "A"
+          ],
+          "resposta_moda": "A",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.806,
+          "erro": null
+        },
+        {
+          "questao": "Q09",
+          "gabarito": "C",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.777,
+          "erro": null
+        },
+        {
+          "questao": "Q10",
+          "gabarito": "E",
+          "respostas": [
+            "B",
+            "B",
+            "B"
+          ],
+          "resposta_moda": "B",
+          "acertos": 0,
+          "correta": false,
+          "latencia_media_s": 0.682,
+          "erro": null
+        }
+      ]
+    }
+  ]
+}

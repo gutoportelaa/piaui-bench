@@ -1,0 +1,150 @@
+{
+  "id": "piaui-mcq-10",
+  "version": "1.0.0",
+  "titulo": "PiauíBench — 10 questões de múltipla escolha sobre o Estado do Piauí",
+  "descricao": "Benchmark de conhecimento factual regional (geografia, história e demografia do Piauí) em português do Brasil. Cada item tem 5 alternativas (A–E) e exatamente uma correta. Métrica: Acurácia.",
+  "idioma": "pt-BR",
+  "metrica": "acuracia",
+  "questoes": [
+    {
+      "id": "Q01",
+      "categoria": "Geografia",
+      "pergunta": "Qual é a atual capital do Estado do Piauí?",
+      "alternativas": {
+        "A": "Parnaíba",
+        "B": "Teresina",
+        "C": "Picos",
+        "D": "Floriano",
+        "E": "Oeiras"
+      },
+      "resposta": "B",
+      "fonte": "IBGE — Cidades e Estados: Piauí"
+    },
+    {
+      "id": "Q02",
+      "categoria": "História",
+      "pergunta": "Qual cidade foi a primeira capital da capitania e depois província do Piauí, antes da transferência da sede do governo?",
+      "alternativas": {
+        "A": "Campo Maior",
+        "B": "Parnaíba",
+        "C": "Oeiras",
+        "D": "Piracuruca",
+        "E": "São Raimundo Nonato"
+      },
+      "resposta": "C",
+      "fonte": "IBGE — História de Oeiras (PI)"
+    },
+    {
+      "id": "Q03",
+      "categoria": "Patrimônio",
+      "pergunta": "O Parque Nacional Serra da Capivara, Patrimônio Mundial da UNESCO e famoso por suas pinturas rupestres, tem como principal município de acesso:",
+      "alternativas": {
+        "A": "São Raimundo Nonato",
+        "B": "Piracuruca",
+        "C": "Corrente",
+        "D": "Bom Jesus",
+        "E": "Uruçuí"
+      },
+      "resposta": "A",
+      "fonte": "ICMBio / UNESCO World Heritage List (ref. 606)"
+    },
+    {
+      "id": "Q04",
+      "categoria": "Geografia",
+      "pergunta": "Qual rio forma a divisa entre o Piauí e o Maranhão e dá origem ao único delta em mar aberto das Américas?",
+      "alternativas": {
+        "A": "Rio Poti",
+        "B": "Rio Gurguéia",
+        "C": "Rio Canindé",
+        "D": "Rio Parnaíba",
+        "E": "Rio Longá"
+      },
+      "resposta": "D",
+      "fonte": "IBGE — Bacia hidrográfica do Parnaíba"
+    },
+    {
+      "id": "Q05",
+      "categoria": "Geografia",
+      "pergunta": "Qual dos seguintes estados NÃO faz divisa territorial com o Piauí?",
+      "alternativas": {
+        "A": "Ceará",
+        "B": "Pernambuco",
+        "C": "Paraíba",
+        "D": "Bahia",
+        "E": "Tocantins"
+      },
+      "resposta": "C",
+      "fonte": "IBGE — Limites territoriais do Piauí"
+    },
+    {
+      "id": "Q06",
+      "categoria": "História",
+      "pergunta": "Teresina é considerada a primeira cidade brasileira planejada. Em que ano ela foi fundada e tornou-se capital do Piauí?",
+      "alternativas": {
+        "A": "1718",
+        "B": "1822",
+        "C": "1852",
+        "D": "1889",
+        "E": "1901"
+      },
+      "resposta": "C",
+      "fonte": "IBGE — História de Teresina (PI)"
+    },
+    {
+      "id": "Q07",
+      "categoria": "História",
+      "pergunta": "A Batalha do Jenipapo, de 1823, um dos episódios mais sangrentos da luta pela independência do Brasil, ocorreu em qual município piauiense?",
+      "alternativas": {
+        "A": "Campo Maior",
+        "B": "Oeiras",
+        "C": "Parnaíba",
+        "D": "Amarante",
+        "E": "Barras"
+      },
+      "resposta": "A",
+      "fonte": "IPHAN — Monumento Nacional Batalha do Jenipapo, Campo Maior (PI)"
+    },
+    {
+      "id": "Q08",
+      "categoria": "Geografia",
+      "pergunta": "O Piauí possui o menor litoral entre os estados costeiros do Brasil. Qual é a extensão aproximada dessa faixa litorânea?",
+      "alternativas": {
+        "A": "6 km",
+        "B": "66 km",
+        "C": "180 km",
+        "D": "320 km",
+        "E": "540 km"
+      },
+      "resposta": "B",
+      "fonte": "IBGE — Extensão da linha de costa por unidade da federação"
+    },
+    {
+      "id": "Q09",
+      "categoria": "Patrimônio",
+      "pergunta": "O Parque Nacional de Sete Cidades, conhecido pelas formações rochosas que lembram ruínas de cidades, situa-se principalmente em qual município?",
+      "alternativas": {
+        "A": "José de Freitas",
+        "B": "Pedro II",
+        "C": "Piracuruca",
+        "D": "Batalha",
+        "E": "Esperantina"
+      },
+      "resposta": "C",
+      "fonte": "ICMBio — Parque Nacional de Sete Cidades"
+    },
+    {
+      "id": "Q10",
+      "categoria": "Demografia",
+      "pergunta": "Qual é o segundo município mais populoso do Piauí, atrás apenas de Teresina?",
+      "alternativas": {
+        "A": "Picos",
+        "B": "Floriano",
+        "C": "Campo Maior",
+        "D": "Piripiri",
+        "E": "Parnaíba"
+      },
+      "resposta": "E",
+      "fonte": "IBGE — Censo Demográfico 2022"
+    }
+  ]
+}

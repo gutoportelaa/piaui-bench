@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PiauíBench — avaliação de LLMs locais</title>
+<meta name="description" content="Benchmark de 10 questões de múltipla escolha sobre o Estado do Piauí para avaliar a acurácia de três LLMs locais executados no Ollama.">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏜️</text></svg>">
+</head>
+<body>
+
+<header class="topo">
+  <div class="wrap">
+    <button class="acao sec tema" id="btn-tema" title="Alternar tema">◐</button>
+    <h1>PiauíBench</h1>
+    <p class="subtitulo">
+      Benchmark de <strong>10 questões de múltipla escolha</strong> (5 alternativas) sobre geografia,
+      história e demografia do Estado do Piauí, usado para comparar a <strong>acurácia</strong> de três
+      LLMs pequenos executados localmente via <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>.
+    </p>
+    <nav class="abas" role="tablist">
+      <button role="tab" data-painel="resultados" aria-selected="true">Resultados</button>
+      <button role="tab" data-painel="executar" aria-selected="false">Executar ao vivo</button>
+      <button role="tab" data-painel="questoes" aria-selected="false">Questões</button>
+      <button role="tab" data-painel="sobre" aria-selected="false">Metodologia</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ================= RESULTADOS ================= -->
+  <section class="painel ativo" id="painel-resultados">
+    <div class="cartao">
+      <h2>Acurácia por modelo</h2>
+      <p class="nota" id="nota-exec">Carregando resultados…</p>
+      <div class="grafico" id="grafico-acuracia"></div>
+      <div class="legenda" id="legenda-modelos"></div>
+    </div>
+
+    <div class="cartao">
+      <h2>Resumo</h2>
+      <p class="nota">Acertos consolidados e custo de inferência por resposta.</p>
+      <div class="tiles" id="tiles-resumo"></div>
+    </div>
+
+    <div class="cartao" id="cartao-robustez" style="display:none">
+      <h2>Robustez: ordem fixa × alternativas permutadas</h2>
+      <p class="nota">
+        As mesmas 10 questões, com as alternativas embaralhadas a cada repetição. Um modelo que
+        <em>sabe</em> a resposta mantém a acurácia; um que apenas prefere certas letras cai em direção
+        ao acaso (20%). A queda mede <strong>viés de seleção posicional</strong>.
+      </p>
+      <div class="grafico" id="grafico-robustez"></div>
+      <div class="legenda">
+        <span><span class="chip" style="background:var(--text-secondary)"></span>Barra sólida: ordem fixa</span>
+        <span><span class="chip amostra-hachura"></span>Barra hachurada: alternativas permutadas</span>
+      </div>
+    </div>
+
+    <div class="cartao" id="cartao-letras" style="display:none">
+      <h2>Distribuição das letras escolhidas</h2>
+      <p class="nota">Quantas vezes cada modelo escolheu cada letra (execução com permutação). Um modelo sem viés distribuiria as escolhas de forma aproximadamente uniforme.</p>
+      <div class="rolagem"><table id="tabela-letras"></table></div>
+    </div>
+
+    <div class="cartao">
+      <h2>Acerto por questão</h2>
+      <p class="nota">✓ = acertou (maioria das repetições) · ✗ = errou. A letra mostrada é a resposta mais frequente do modelo.</p>
+      <div class="rolagem"><table id="tabela-matriz"></table></div>
+    </div>
+  </section>
+
+  <!-- ================= EXECUTAR ================= -->
+  <section class="painel" id="painel-executar">
+    <div class="cartao">
+      <h2>Rodar o benchmark no seu Ollama</h2>
+      <p class="nota">A página chama a API local do Ollama direto do navegador. Nada sai da sua máquina.</p>
+
+      <div class="aviso">
+        <strong>Pré-requisito (CORS).</strong> Servindo esta página de <code>localhost</code>, o Ollama já
+        aceita a conexão por padrão. Abrindo pelo <strong>GitHub Pages</strong>, é preciso autorizar a origem:
+        <pre><code>OLLAMA_ORIGINS="https://gutoportelaa.github.io" ollama serve</code></pre>
+        No Linux com systemd: <code>systemctl edit ollama</code>, adicione
+        <code>Environment="OLLAMA_ORIGINS=https://gutoportelaa.github.io"</code> e reinicie o serviço.
+        Depois clique em <em>Conectar</em>.
+      </div>
+
+      <div class="controles">
+        <label class="campo">Host do Ollama
+          <input id="host" value="http://localhost:11434">
+        </label>
+        <label class="campo">Repetições por questão
+          <select id="runs"><option>1</option><option selected>3</option><option>5</option></select>
+        </label>
+        <button class="acao sec" id="btn-conectar">Conectar</button>
+        <button class="acao" id="btn-rodar" disabled>Executar benchmark</button>
+      </div>
+
+      <div class="modelos-lista" id="modelos-lista"></div>
+      <p class="status" id="status"></p>
+    </div>
+
+    <div class="cartao" id="cartao-vivo" style="display:none">
+      <h2>Resultado da execução ao vivo</h2>
+      <p class="nota" id="nota-vivo"></p>
+      <div class="grafico" id="grafico-vivo"></div>
+      <div class="rolagem" style="margin-top:22px"><table id="tabela-vivo"></table></div>
+      <p style="margin-top:16px"><button class="acao sec" id="btn-baixar">Baixar results.json</button></p>
+    </div>
+  </section>
+
+  <!-- ================= QUESTÕES ================= -->
+  <section class="painel" id="painel-questoes">
+    <div class="cartao">
+      <h2>As 10 questões</h2>
+      <p class="nota">Gabarito destacado em verde. Cada item traz a fonte usada para validar a resposta.</p>
+      <div id="lista-questoes"></div>
+    </div>
+  </section>
+
+  <!-- ================= SOBRE ================= -->
+  <section class="painel" id="painel-sobre">
+    <div class="cartao">
+      <h2>Metodologia</h2>
+      <p class="nota">Como a acurácia é medida.</p>
+      <ul>
+        <li><strong>Tarefa:</strong> QA de múltipla escolha (MCQA) fechada, sem contexto recuperado — mede conhecimento paramétrico regional em pt-BR.</li>
+        <li><strong>Prompt:</strong> um <em>system prompt</em> fixo em português + a questão com as cinco alternativas rotuladas A–E, pedindo apenas a letra.</li>
+        <li><strong>Decodificação:</strong> <code>temperature = 0</code>, <code>top_p = 1</code>, <code>seed</code> fixa e <code>think: false</code> (desliga o modo de raciocínio do Qwen3), garantindo reprodutibilidade.</li>
+        <li><strong>Saída estruturada:</strong> usa o parâmetro <code>format</code> do Ollama com um schema JSON cujo <code>enum</code> é <code>["A","B","C","D","E"]</code>. Isso elimina falhas de parsing e separa erro de conhecimento de erro de formatação.</li>
+        <li><strong>Repetições:</strong> cada questão é feita <em>n</em> vezes (padrão 3) com sementes diferentes; a resposta considerada é a moda, e a acurácia global usa todas as chamadas.</li>
+        <li><strong>Métrica:</strong> acurácia = acertos / total de chamadas. Baseline aleatório = <strong>20%</strong> (1 em 5).</li>
+        <li><strong>Limitação:</strong> com apenas 10 itens, o intervalo de confiança é largo (cada questão vale 10 p.p.). O resultado é indicativo, não conclusivo — veja "Como ampliar" no README.</li>
+      </ul>
+    </div>
+
+    <div class="cartao">
+      <h2>Reproduzir localmente</h2>
+      <pre><code>git clone https://github.com/gutoportelaa/piaui-bench
+cd piaui-bench
+
+ollama pull llama3.2:3b
+ollama pull qwen3:4b
+ollama pull gemma3:4b
+
+python3 bench/run_bench.py --runs 3
+python3 -m http.server -d docs 8000   # abre http://localhost:8000</code></pre>
+    </div>
+
+    <div class="cartao">
+      <h2>Referências</h2>
+      <ul class="refs">
+        <li><a href="https://github.com/ollama/ollama/blob/main/docs/api.md" target="_blank" rel="noopener">Ollama — API reference</a> (endpoints <code>/api/chat</code>, <code>/api/tags</code>, saída estruturada)</li>
+        <li><a href="https://github.com/EleutherAI/lm-evaluation-harness" target="_blank" rel="noopener">EleutherAI — lm-evaluation-harness</a>: framework padrão de avaliação de LLMs; suporta backend local</li>
+        <li><a href="https://arxiv.org/abs/2009.03300" target="_blank" rel="noopener">Hendrycks et al. (2021) — MMLU</a>: o desenho de múltipla escolha adotado aqui</li>
+        <li><a href="https://arxiv.org/abs/2304.01938" target="_blank" rel="noopener">Nunes et al. (2023) — ENEM Challenge</a>: LLMs em questões de múltipla escolha em português</li>
+        <li><a href="https://github.com/eduagarcia/open_pt_llm_leaderboard" target="_blank" rel="noopener">Open PT-LLM Leaderboard</a> e <a href="https://github.com/nlp-uoregon/mlmm-evaluation" target="_blank" rel="noopener">Poeta / mLMM</a>: benchmarks de LLMs em português</li>
+        <li><a href="https://arxiv.org/abs/2309.05463" target="_blank" rel="noopener">Zheng et al. (2023) — Large Language Models Are Not Robust Multiple Choice Selectors</a>: viés posicional em MCQA</li>
+        <li>Dados de referência: <a href="https://cidades.ibge.gov.br/brasil/pi" target="_blank" rel="noopener">IBGE — Piauí</a>, <a href="https://www.gov.br/icmbio" target="_blank" rel="noopener">ICMBio</a>, <a href="https://whc.unesco.org/en/list/606/" target="_blank" rel="noopener">UNESCO — Serra da Capivara</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    PiauíBench · dados e código em <a href="https://github.com/gutoportelaa/piaui-bench" target="_blank" rel="noopener">github.com/gutoportelaa/piaui-bench</a>
+  </footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
