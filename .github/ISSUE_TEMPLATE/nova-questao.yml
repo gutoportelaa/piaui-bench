@@ -1,0 +1,50 @@
+name: Nova questão para o benchmark
+description: Proponha uma questão de múltipla escolha sobre o Piauí
+title: "[questão] "
+labels: ["questao"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        O jeito mais fácil de abrir esta issue já preenchida é usar o botão
+        **Compartilhar** na aba *Adicionar questões* da
+        [aplicação](https://gutoportelaa.github.io/piaui-bench/).
+
+  - type: textarea
+    id: json
+    attributes:
+      label: Questão (JSON)
+      description: Cole o JSON gerado pelo editor, ou preencha no mesmo formato.
+      render: json
+      value: |
+        {
+          "id": "C01",
+          "categoria": "Geografia",
+          "pergunta": "",
+          "alternativas": { "A": "", "B": "", "C": "", "D": "", "E": "" },
+          "resposta": "A",
+          "fonte": ""
+        }
+    validations:
+      required: true
+
+  - type: input
+    id: fonte
+    attributes:
+      label: Fonte verificável do gabarito
+      description: IBGE, ICMBio, IPHAN, UNESCO, lei estadual, publicação acadêmica…
+      placeholder: https://cidades.ibge.gov.br/brasil/pi
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: qualidade
+    attributes:
+      label: Critérios de aceite
+      options:
+        - label: As cinco alternativas são plausíveis e do mesmo tipo (todas municípios, todos anos, todos rios…)
+          required: true
+        - label: Exatamente uma alternativa está correta, e a fonte permite verificar isso
+          required: true
+        - label: A resposta não muda com o tempo, ou o enunciado fixa a data de referência
+          required: true

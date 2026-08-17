@@ -19,21 +19,31 @@ const questoesAtivas = () => [...BENCH.questoes, ...PERSONALIZADAS];
 const escapa = (s) => String(s ?? "").replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-/* ---------------- abas + tema ---------------- */
+/* ---------------- abas ---------------- */
 document.querySelectorAll(".abas button").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".abas button").forEach((b) => b.setAttribute("aria-selected", "false"));
     btn.setAttribute("aria-selected", "true");
-    document.querySelectorAll(".painel").forEach((p) => p.classList.remove("ativa", "ativo"));
+    document.querySelectorAll(".painel").forEach((p) => p.classList.remove("ativo"));
     document.getElementById("painel-" + btn.dataset.painel).classList.add("ativo");
+    document.getElementById("rota-secao").textContent = btn.textContent.trim().toLowerCase();
   });
 });
 
-document.getElementById("btn-tema").addEventListener("click", () => {
-  const atual = document.documentElement.getAttribute("data-theme");
-  const escuroAgora = atual === "dark" || (!atual && matchMedia("(prefers-color-scheme: dark)").matches);
-  document.documentElement.setAttribute("data-theme", escuroAgora ? "light" : "dark");
-});
+/* Sonda o Ollama local só para acender o LED da barra de sistema. */
+async function sondaOllama() {
+  const led = document.getElementById("led-ollama");
+  const txt = document.getElementById("txt-ollama");
+  try {
+    const r = await fetch("http://localhost:11434/api/tags", { signal: AbortSignal.timeout(2500) });
+    const { models } = await r.json();
+    led.className = "led on";
+    txt.textContent = `online · ${models.length} modelos`;
+  } catch (_) {
+    led.className = "led off";
+    txt.textContent = "offline";
+  }
+}
 
 /* ---------------- gráfico de barras ---------------- */
 function desenhaGrafico(alvo, resultados) {
@@ -252,6 +262,7 @@ function desenhaCustom() {
       <div class="linha-topo-custom">
         <span><span class="tag">${escapa(q.id)} · ${escapa(q.categoria)}</span></span>
         <span>
+          <button class="acao sec mini" data-compartilhar="${escapa(q.id)}">Compartilhar</button>
           <button class="acao sec mini" data-editar="${escapa(q.id)}">Editar</button>
           <button class="acao sec mini" data-remover="${escapa(q.id)}">Remover</button>
         </span>
@@ -263,6 +274,8 @@ function desenhaCustom() {
       ${q.fonte ? `<div class="fonte">Fonte: ${escapa(q.fonte)}</div>` : ""}
     </div>`).join("");
 
+  alvo.querySelectorAll("[data-compartilhar]").forEach((b) => b.addEventListener("click", () =>
+    abreIssue([PERSONALIZADAS.find((q) => q.id === b.dataset.compartilhar)])));
   alvo.querySelectorAll("[data-editar]").forEach((b) => b.addEventListener("click", () => {
     preencheForm(PERSONALIZADAS.find((q) => q.id === b.dataset.editar));
     document.getElementById("f-pergunta").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -273,6 +286,38 @@ function desenhaCustom() {
     if (EDITANDO === b.dataset.remover) preencheForm(null);
     salvaPersonalizadas();
   }));
+}
+
+const REPO = "gutoportelaa/piaui-bench";
+
+/* Compartilhamento sem backend: abre uma issue do GitHub já preenchida.
+   O site é estático e não pode gravar nada — o repositório é o banco de dados. */
+function abreIssue(questoes) {
+  const limpas = questoes.filter(Boolean).map(({ personalizada, ...q }) => q);
+  if (!limpas.length) return;
+
+  const titulo = limpas.length === 1
+    ? `[questão] ${limpas[0].pergunta.slice(0, 70)}`
+    : `[questão] ${limpas.length} novas questões`;
+
+  const corpo = [
+    limpas.length === 1
+      ? "Proposta de questão para o benchmark, gerada pelo editor da aplicação."
+      : `Proposta de ${limpas.length} questões, geradas pelo editor da aplicação.`,
+    "", "```json", JSON.stringify(limpas, null, 2), "```", "",
+    "**Fontes:** " + (limpas.map((q) => q.fonte).filter(Boolean).join(" · ") || "_não informada_"),
+    "", "<sub>Critérios de aceite: alternativas plausíveis e do mesmo tipo, gabarito único e verificável pela fonte.</sub>",
+  ].join("\n");
+
+  const url = `https://github.com/${REPO}/issues/new` +
+    `?labels=questao&title=${encodeURIComponent(titulo)}&body=${encodeURIComponent(corpo)}`;
+
+  if (url.length > 7500) {
+    baixa("questoes-novas.json", limpas);
+    return alert("O conjunto ficou grande demais para a URL da issue.\n" +
+      "Baixei o JSON — anexe-o à issue manualmente.");
+  }
+  window.open(url, "_blank", "noopener");
 }
 
 function baixa(nome, obj) {
@@ -314,6 +359,12 @@ function ligaEditor() {
     EDITANDO = null;
     document.getElementById("btn-salvar").textContent = "Adicionar questão";
     document.getElementById("btn-cancelar").style.display = "none";
+  });
+
+  document.getElementById("btn-enviar-todas").addEventListener("click", () => {
+    if (!PERSONALIZADAS.length) return aviso("Nenhuma questão sua para compartilhar.");
+    abreIssue(PERSONALIZADAS);
+    aviso("Issue aberta em nova aba — revise e publique para propor as questões.");
   });
 
   document.getElementById("btn-exportar").addEventListener("click", () => {
@@ -506,10 +557,13 @@ document.getElementById("btn-baixar").addEventListener("click", () => {
   carregaPersonalizadas();
   ligaEditor();
   desenhaQuestoes();
+  sondaOllama();
   try {
     const dados = await (await fetch("results.json")).json();
     document.getElementById("nota-exec").textContent =
       `Execução de ${new Date(dados.executado_em).toLocaleString("pt-BR")} · ${dados.runs} repetições por questão · ${BENCH.questoes.length} questões`;
+    document.getElementById("txt-exec").textContent =
+      "última execução: " + new Date(dados.executado_em).toLocaleString("pt-BR");
     desenhaGrafico(document.getElementById("grafico-acuracia"), dados.resultados);
     desenhaLegenda(document.getElementById("legenda-modelos"), dados.resultados);
     desenhaTiles(document.getElementById("tiles-resumo"), dados);

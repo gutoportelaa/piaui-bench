@@ -1,0 +1,83 @@
+name: Executar benchmark
+
+# Executa o PiauiBench e commita os resultados de volta no repositorio.
+# Isto substitui a "fila de espera pelo host": quem enfileira e o runner do
+# GitHub, nao a maquina de ninguem.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "Modelos (separados por espaco)"
+        default: "llama3.2:3b qwen3:4b gemma3:4b"
+      runs:
+        description: "Repeticoes por questao"
+        default: "3"
+  push:
+    paths:
+      - "docs/benchmark.json"   # questao nova aceita -> re-mede tudo
+      - "bench/run_bench.py"
+
+permissions:
+  contents: write
+
+jobs:
+  bench:
+    # Trocar por [self-hosted, gpu] para rodar na maquina com GPU do mantenedor.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Subir o servidor
+        run: |
+          ollama serve &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/tags >/dev/null && exit 0
+            sleep 2
+          done
+          echo "Ollama nao subiu a tempo" >&2 && exit 1
+
+      - name: Baixar os modelos
+        run: |
+          for m in ${{ inputs.models || 'llama3.2:3b qwen3:4b gemma3:4b' }}; do
+            echo "::group::pull $m"
+            ollama pull "$m"
+            echo "::endgroup::"
+          done
+
+      - name: Rodar o benchmark
+        run: |
+          MODELS="${{ inputs.models || 'llama3.2:3b qwen3:4b gemma3:4b' }}"
+          RUNS="${{ inputs.runs || '3' }}"
+          python3 bench/run_bench.py --models $MODELS --runs "$RUNS" \
+            --timeout 600 --out docs/results.json
+          python3 bench/run_bench.py --models $MODELS --runs "$RUNS" --shuffle \
+            --timeout 600 --out docs/results_shuffle.json
+
+      - name: Resumo
+        run: |
+          python3 - <<'PY' >> $GITHUB_STEP_SUMMARY
+          import json
+          for arquivo, titulo in [("docs/results.json", "Ordem fixa"),
+                                  ("docs/results_shuffle.json", "Alternativas permutadas")]:
+              d = json.load(open(arquivo))
+              print(f"### {titulo}\n")
+              print("| Modelo | Acurácia | Acertos | Latência |")
+              print("|---|---|---|---|")
+              for r in d["resultados"]:
+                  print(f"| `{r['modelo']}` | {r['acuracia']:.1%} | {r['acertos']}/{r['total']} | {r['latencia_media_s']}s |")
+              print()
+          PY
+
+      - name: Commitar os resultados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/results.json docs/results_shuffle.json
+          git diff --staged --quiet && echo "Sem mudancas." && exit 0
+          git commit -m "Atualiza resultados do benchmark (runner: ${{ runner.os }}, ${{ github.event_name }})"
+          git push

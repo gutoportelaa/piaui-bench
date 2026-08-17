@@ -11,9 +11,17 @@
 <body>
 
 <header class="topo">
-  <div class="wrap">
-    <button class="acao sec tema" id="btn-tema" title="Alternar tema">◐</button>
-    <h1>PiauíBench</h1>
+  <div class="barra-sistema">
+    <div class="wrap">
+      <span class="rota">piauibench / <b id="rota-secao">resultados</b></span>
+      <span class="direita">
+        <span><span class="led" id="led-ollama"></span> ollama: <span id="txt-ollama">não verificado</span></span>
+        <span id="txt-exec">—</span>
+      </span>
+    </div>
+  </div>
+  <div class="wrap cabecalho">
+    <h1>Piauí<span class="marca-acento">Bench</span></h1>
     <p class="subtitulo">
       Benchmark de <strong>10 questões de múltipla escolha</strong> (5 alternativas) sobre geografia,
       história e demografia do Estado do Piauí, usado para comparar a <strong>acurácia</strong> de três
@@ -47,11 +55,24 @@
     </div>
 
     <div class="cartao" id="cartao-robustez" style="display:none">
-      <h2>Robustez: ordem fixa × alternativas permutadas</h2>
+      <h2>Controle de viés posicional</h2>
       <p class="nota">
-        As mesmas 10 questões, com as alternativas embaralhadas a cada repetição. Um modelo que
-        <em>sabe</em> a resposta mantém a acurácia; um que apenas prefere certas letras cai em direção
-        ao acaso (20%). A queda mede <strong>viés de seleção posicional</strong>.
+        <strong>O teste:</strong> as mesmas 10 questões são reaplicadas com a ordem das cinco
+        alternativas permutada a cada repetição. O conteúdo não muda — só a letra em que a resposta
+        correta aparece. O gabarito é remapeado junto, então a acurácia continua comparável.
+      </p>
+      <p class="nota">
+        <strong>Por que isso importa:</strong> um modelo pode acertar a múltipla escolha sem saber a
+        resposta, bastando ter preferência pela letra em que o gabarito calhou de estar. Sob ordem fixa,
+        preferência por letra e conhecimento produzem exatamente o mesmo número — a acurácia isolada
+        não distingue os dois.
+      </p>
+      <p class="nota">
+        <strong>Como ler:</strong> conhecimento sobrevive à permutação, preferência por letra não.
+        Barras iguais = o acerto vinha de conhecimento. Queda em direção a 20% (o acaso com 5 alternativas)
+        = parte do acerto original era artefato da posição do gabarito. <strong>A altura da barra hachurada
+        é a estimativa menos contaminada;</strong> a diferença entre as duas quantifica o quanto a
+        medição de ordem fixa estava inflada.
       </p>
       <div class="grafico" id="grafico-robustez"></div>
       <div class="legenda">
@@ -62,7 +83,12 @@
 
     <div class="cartao" id="cartao-letras" style="display:none">
       <h2>Distribuição das letras escolhidas</h2>
-      <p class="nota">Quantas vezes cada modelo escolheu cada letra (execução com permutação). Um modelo sem viés distribuiria as escolhas de forma aproximadamente uniforme.</p>
+      <p class="nota">
+        Frequência de cada letra na execução com permutação. Como a permutação espalha o gabarito
+        uniformemente pelas cinco posições, um modelo sem viés responderia cerca de 20% em cada letra.
+        Concentração acima disso é a assinatura direta do viés: mede a preferência pela <em>posição</em>,
+        independentemente do conteúdo da alternativa.
+      </p>
       <div class="rolagem"><table id="tabela-letras"></table></div>
     </div>
 
@@ -175,6 +201,7 @@
       <div id="lista-custom"></div>
 
       <div class="controles" style="margin-top:18px">
+        <button class="acao" id="btn-enviar-todas">Compartilhar todas via GitHub</button>
         <button class="acao sec" id="btn-exportar">Baixar benchmark.json completo</button>
         <button class="acao sec" id="btn-copiar">Copiar só as novas (JSON)</button>
         <label class="acao sec" style="cursor:pointer;font-weight:600">
@@ -186,17 +213,40 @@
     </div>
 
     <div class="cartao">
-      <h2>Como incorporar ao benchmark oficial</h2>
-      <p class="nota">O GitHub Pages serve arquivos estáticos e não pode gravar de volta no repositório — a persistência definitiva é via commit.</p>
-      <ol>
-        <li>Crie as questões aqui e clique em <strong>Baixar benchmark.json completo</strong>.</li>
-        <li>Substitua <code>docs/benchmark.json</code> no repositório pelo arquivo baixado.</li>
-        <li>Rode <code>python3 bench/run_bench.py --runs 3</code> para regerar os resultados com o conjunto novo.</li>
-        <li>Abra um Pull Request. O <code>fonte</code> de cada questão é o que permite revisar o gabarito.</li>
-      </ol>
-      <p style="font-size:.88rem;color:var(--text-secondary)">
-        Regra de qualidade: as cinco alternativas devem ser plausíveis e do mesmo tipo (todas municípios,
-        todos anos, todos rios). Distratores absurdos inflam a acurácia e escondem o que o modelo realmente sabe.
+      <h2>Como as questões chegam a outros usuários</h2>
+      <p class="nota">
+        O GitHub Pages serve arquivos estáticos: não há servidor, banco nem sessão. O
+        <code>localStorage</code> é privado do seu navegador — <strong>ninguém mais vê suas questões
+        até que elas entrem no repositório.</strong> O repositório é o banco de dados compartilhado.
+      </p>
+
+      <div class="aviso">
+        <strong>Fluxo</strong>
+        <div style="margin-top:8px">
+          editor → <strong>Compartilhar</strong> abre uma issue já preenchida →
+          revisão do gabarito contra a fonte → merge em <code>docs/benchmark.json</code> →
+          CI reexecuta o benchmark → <code>results.json</code> commitado →
+          Pages publica para todos.
+        </div>
+      </div>
+
+      <p class="nota" style="margin-bottom:8px"><strong>Nenhuma das etapas exige backend.</strong> A revisão humana entre a proposta e o merge é deliberada: um gabarito errado contamina a métrica de todos os modelos, e o campo <code>fonte</code> é o que torna isso auditável.</p>
+
+      <p class="nota" style="margin-bottom:6px">Se preferir contribuir direto pelo git:</p>
+      <pre><code>mv ~/Downloads/benchmark.json docs/benchmark.json
+python3 bench/run_bench.py --runs 3
+python3 bench/run_bench.py --runs 5 --shuffle --out docs/results_shuffle.json
+git commit -am "Adiciona questões sobre X" &amp;&amp; git push</code></pre>
+      <p class="nota">
+        O push em <code>docs/benchmark.json</code> dispara o workflow <code>benchmark.yml</code>,
+        que instala o Ollama no runner, reexecuta as duas variantes e commita os resultados —
+        não é preciso ter GPU nem rodar nada localmente.
+      </p>
+
+      <p class="nota">
+        <strong>Regra de qualidade:</strong> as cinco alternativas devem ser plausíveis e do mesmo tipo
+        (todas municípios, todos anos, todos rios). Distrator absurdo reduz o problema a menos de cinco
+        opções efetivas, inflando a acurácia sem que o modelo saiba mais.
       </p>
     </div>
   </section>
