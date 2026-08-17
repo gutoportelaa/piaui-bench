@@ -16,8 +16,8 @@ visitando cada posição exatamente uma vez.
 | Modelo | Família | Params | Acurácia (fixa) | Acurácia (cíclica) | Δ | Acima do acaso |
 |---|---|---|---|---|---|---|
 | `llama3.2:3b` | Meta | 3,2 B | 50,0 % | **38,0 %** | −12,0 p.p. | +18,0 p.p. |
-| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 36,0 % | −4,0 p.p. | +16,0 p.p. |
-| `gemma3:4b`   | Google | 4,3 B | 30,0 % | 24,0 % | −6,0 p.p. | +4,0 p.p. |
+| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 34,0 % | −6,0 p.p. | +14,0 p.p. |
+| `gemma3:4b`   | Google | 4,3 B | 40,0 % | 26,0 % | −14,0 p.p. | +6,0 p.p. |
 
 Baseline aleatório: **20 %**. Latência: 0,35–0,70 s por resposta na RTX 4070; 1,7–5,1 s na CPU do
 runner do GitHub.
@@ -26,16 +26,17 @@ runner do GitHub.
 > e o `llama3.2:3b` — que parecia imune sob permutação aleatória com 3 amostras — cai 12 p.p. sob
 > cobertura completa das 5 posições. A amostragem aleatória subestimava o viés porque não garantia
 > que cada posição fosse testada. Sob a medida corrigida, a distância entre `llama3.2:3b` e
-> `qwen3:4b` cai de 10 p.p. para 2 p.p., que com 10 questões **não é diferença significativa**.
+> `qwen3:4b` cai de 10 p.p. para 4 p.p. — com 10 questões, **não é diferença significativa**.
 >
 > **Reprodutibilidade:** `temperature=0` e `seed` fixa dão determinismo *na mesma máquina*, mas CPU
-> e CUDA fazem aritmética de ponto flutuante diferente — o `gemma3:4b` já variou uma questão entre
-> os dois ambientes. Com 10 itens isso é ruído esperado.
+> e CUDA fazem aritmética de ponto flutuante diferente. Rodando os mesmos 180 prompts numa RTX 4070,
+> o `llama3.2:3b` deu exatamente os mesmos 50,0 % / 38,0 %; `qwen3:4b` e `gemma3:4b` variaram 1–2
+> chamadas. Com 10 itens isso é ruído esperado.
 
 ### O achado principal
 
 A comparação entre as duas colunas é mais informativa que a acurácia isolada. **Os três modelos
-caem** quando o gabarito deixa de ficar parado numa posição — de 4 a 12 pontos percentuais.
+caem** quando o gabarito deixa de ficar parado numa posição — de 6 a 14 pontos percentuais.
 Parte do que a ordem fixa media não era conhecimento, e sim **viés de seleção posicional**.
 
 O caso mais claro:
@@ -50,8 +51,8 @@ Teresina.                       # ✅ sabe a resposta
 
 A distribuição das letras confirma o padrão. Sob rotação cíclica o gabarito ocupa cada posição
 exatamente 20 % das vezes, então um modelo sem viés responderia ~20 % em cada letra; na prática,
-`llama3.2:3b` escolheu "B" em 38 % das respostas, `gemma3:4b` escolheu "A" em 30 % e `qwen3:4b`
-escolheu "B" em 28 %. É o efeito descrito por
+os três concentraram em "B": 38 % no `llama3.2:3b`, 30 % no `gemma3:4b` e 28 % no `qwen3:4b`.
+É o efeito descrito por
 [Zheng et al. (2023)](https://arxiv.org/abs/2309.05463), e é a razão de o projeto reportar
 as duas medidas lado a lado.
 
@@ -364,8 +365,8 @@ $ python3 bench/consolidar.py
 | Modelo | Acurácia (fixa) | Acurácia (cíclica) | Variação | Acima do acaso | Letra dominante |
 |---|---|---|---|---|---|
 | `llama3.2:3b` | 50.0% | 38.0% | -12.0 p.p. | +18.0 p.p. | B (38%) |
-| `qwen3:4b`    | 40.0% | 36.0% |  -4.0 p.p. | +16.0 p.p. | B (28%) |
-| `gemma3:4b`   | 30.0% | 24.0% |  -6.0 p.p. |  +4.0 p.p. | A (30%) |
+| `qwen3:4b`    | 40.0% | 34.0% |  -6.0 p.p. | +14.0 p.p. | B (28%) |
+| `gemma3:4b`   | 40.0% | 26.0% | -14.0 p.p. |  +6.0 p.p. | B (30%) |
 ```
 
 Saídas: `docs/summary.json` (com `variacao_pp`, `variacao_relativa`, `acima_do_acaso_pp` e a
