@@ -1,4 +1,4 @@
-modelo,acuracia_fixa,acuracia_permutada,variacao_pp,variacao_relativa,acima_do_acaso_pp,chamadas_fixa,chamadas_permutada,letra_mais_escolhida,concentracao_letra_top,latencia_media_s
-llama3.2:3b,0.5,0.38,-12.0,-0.24,18.0,10,50,B,0.38,4.437
-qwen3:4b,0.4,0.34,-6.0,-0.15,14.0,10,50,B,0.28,5.903
-gemma3:4b,0.4,0.26,-14.0,-0.35,6.0,10,50,B,0.3,7.993
+modelo,acuracia_fixa,acuracia_permutada,variacao_pp,variacao_relativa,acima_do_acaso_pp,erro_padrao,ic95,n_questoes,distinguivel_do_acaso,chamadas_fixa,chamadas_permutada,letra_mais_escolhida,concentracao_letra_top,latencia_media_s
+llama3.2:3b,0.5,0.38,-12.0,-0.24,18.0,0.0917,"[0.2004, 0.5596]",10,True,10,50,B,0.38,4.437
+qwen3:4b,0.4,0.34,-6.0,-0.15,14.0,0.1267,"[0.0917, 0.5883]",10,False,10,50,B,0.28,5.903
+gemma3:4b,0.4,0.26,-14.0,-0.35,6.0,0.0733,"[0.1163, 0.4037]",10,False,10,50,B,0.3,7.993

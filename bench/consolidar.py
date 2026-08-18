@@ -15,6 +15,7 @@ Uso:
 import argparse
 import csv
 import json
+import math
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -24,6 +25,27 @@ BASELINE = 1 / len(LETRAS)
 
 def indice(dados: dict) -> dict:
     return {r["modelo"]: r for r in dados["resultados"]}
+
+
+def ic_agrupado(resultado: dict, z: float = 1.959964) -> tuple:
+    """Erro-padrao e IC 95% com agrupamento no nivel da QUESTAO.
+
+    As repeticoes de uma mesma questao nao sao observacoes independentes: sao a
+    mesma pergunta reapresentada. Tratar as 50 chamadas como n=50 subestimaria
+    o erro em ~2,2x. A unidade amostral e a questao, entao calculamos a taxa de
+    acerto por questao e tiramos o erro-padrao dessas taxas.
+
+    Ver Miller (2024), "Adding Error Bars to Evals", secao sobre clustered
+    standard errors para questoes com multiplas amostras.
+    """
+    taxas = [d["acertos"] / len(d["respostas"]) for d in resultado["detalhes"] if d["respostas"]]
+    n = len(taxas)
+    if n < 2:
+        return 0.0, (0.0, 1.0), n
+    media = sum(taxas) / n
+    var = sum((t - media) ** 2 for t in taxas) / (n - 1)
+    erro = math.sqrt(var / n)
+    return erro, (max(0.0, media - z * erro), min(1.0, media + z * erro)), n
 
 
 def consolida(fixa: dict, permutada: dict) -> dict:
@@ -36,6 +58,7 @@ def consolida(fixa: dict, permutada: dict) -> dict:
         if rp is None:
             continue
 
+        erro, (ic_lo, ic_hi), n_questoes = ic_agrupado(rp)
         total_letras = sum(rp["distribuicao_letras"].values()) or 1
         # Concentracao maxima numa unica letra sob permutacao: 20% = sem vies.
         letra_top, cont_top = max(rp["distribuicao_letras"].items(), key=lambda kv: kv[1])
@@ -51,6 +74,12 @@ def consolida(fixa: dict, permutada: dict) -> dict:
             if rf["acuracia"] else None,
             # Quanto da acuracia permutada excede o acaso (20%), em pontos percentuais.
             "acima_do_acaso_pp": round((rp["acuracia"] - BASELINE) * 100, 1),
+            # Erro-padrao agrupado por questao (n = numero de questoes, nao de chamadas).
+            "erro_padrao": round(erro, 4),
+            "ic95": [round(ic_lo, 4), round(ic_hi, 4)],
+            "n_questoes": n_questoes,
+            # Se o IC cobre 20%, o resultado nao se distingue do acaso.
+            "distinguivel_do_acaso": ic_lo > BASELINE,
             "chamadas_fixa": rf["total"],
             "chamadas_permutada": rp["total"],
             "letra_mais_escolhida": letra_top,
@@ -74,11 +103,11 @@ def consolida(fixa: dict, permutada: dict) -> dict:
 
 
 def markdown(resumo: dict) -> str:
-    cab = ("| Modelo | Acurácia (fixa) | Acurácia (permutada) | Variação | Acima do acaso | "
+    cab = ("| Modelo | Acurácia (fixa) | Acurácia (permutada) | IC 95% | Variação | "
            "Letra dominante |\n|---|---|---|---|---|---|")
     linhas = [
         f"| `{l['modelo']}` | {l['acuracia_fixa']:.1%} | {l['acuracia_permutada']:.1%} | "
-        f"{l['variacao_pp']:+.1f} p.p. | {l['acima_do_acaso_pp']:+.1f} p.p. | "
+        f"[{l['ic95'][0]:.1%}, {l['ic95'][1]:.1%}] | {l['variacao_pp']:+.1f} p.p. | "
         f"{l['letra_mais_escolhida']} ({l['concentracao_letra_top']:.0%}) |"
         for l in resumo["ranking"]
     ]

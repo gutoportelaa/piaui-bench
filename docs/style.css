@@ -280,3 +280,33 @@ fieldset.alternativas legend {
 .dist { display: flex; align-items: center; gap: 8px; }
 .dist-trilho { flex: 1; background: var(--surface-2); border-radius: 2px; height: 8px; min-width: 40px; }
 .dist-fill { height: 100%; border-radius: 0 2px 2px 0; }
+
+/* ---------------- intervalo de confiança e linha do acaso ---------------- */
+.barra-trilho { position: relative; }
+
+/* Marca do baseline aleatório (20%): referência, não dado. */
+.trilho-acaso::after {
+  content: ""; position: absolute; left: 20%; top: 0; bottom: 0; z-index: 2;
+  width: 1px; background: var(--bg); opacity: .9;
+}
+
+/* Bigode do IC 95%, desenhado sobre a barra. */
+.ic-faixa {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+  height: 7px; pointer-events: none;
+}
+.ic-faixa::before, .ic-faixa::after {
+  content: ""; position: absolute; top: 0; width: 2px; height: 7px;
+  background: var(--text-primary);
+}
+.ic-faixa::before { left: 0; }
+.ic-faixa::after  { right: 0; }
+.ic-linha {
+  position: absolute; top: 50%; left: 0; right: 0; height: 2px;
+  transform: translateY(-50%); background: var(--text-primary);
+}
+.aviso-acaso {
+  margin-top: 10px; font-size: 0.72rem; color: var(--text-muted);
+  letter-spacing: .04em; line-height: 1.6;
+}
+.aviso-acaso b { color: var(--critical); font-weight: 700; }

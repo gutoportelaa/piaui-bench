@@ -112,8 +112,9 @@ function desenhaMatriz(tabela, dados, questoes = BENCH.questoes) {
 }
 
 /* ---------------- robustez: ordem fixa × permutada ---------------- */
-function desenhaRobustez(dados, shuf) {
+function desenhaRobustez(dados, shuf, resumo) {
   const porModelo = Object.fromEntries(shuf.resultados.map((r) => [r.modelo, r]));
+  const ic = Object.fromEntries((resumo?.ranking || []).map((l) => [l.modelo, l]));
   const linhas = dados.resultados.filter((r) => porModelo[r.modelo]);
   if (!linhas.length) return false;
 
@@ -121,14 +122,24 @@ function desenhaRobustez(dados, shuf) {
     const s = porModelo[r.modelo];
     const delta = s.acuracia - r.acuracia;
     const sinal = delta >= 0 ? "+" : "−";
+    const est = ic[r.modelo];
+    // Bigode do IC 95% só na barra permutada, que é a estimativa reportável.
+    const bigode = (mostrar) => {
+      if (!mostrar || !est) return "";
+      const lo = est.ic95[0] * 100, hi = est.ic95[1] * 100;
+      return `<span class="ic-faixa" style="left:${lo.toFixed(1)}%;width:${(hi - lo).toFixed(1)}%"
+                    title="IC 95%: ${pct(est.ic95[0])} a ${pct(est.ic95[1])}"><span class="ic-linha"></span></span>`;
+    };
     const barra = (valor, hachurada) => `
       <div class="barra-topo">
-        <span class="barra-meta">${hachurada ? "permutada" : "ordem fixa"}</span>
+        <span class="barra-meta">${hachurada ? "cíclica" : "ordem fixa"}${
+          hachurada && est ? ` · IC 95% [${pct(est.ic95[0])}, ${pct(est.ic95[1])}]` : ""}</span>
         <span class="barra-valor" style="font-size:.85rem">${pct(valor)}</span>
       </div>
-      <div class="barra-trilho">
+      <div class="barra-trilho trilho-acaso">
         <div class="barra-fill${hachurada ? " hachura" : ""}"
              style="width:${(valor * 100).toFixed(1)}%;background-color:${corDe(i)}"></div>
+        ${bigode(hachurada)}
       </div>`;
     return `<div class="barra-linha par-linha">
       <div class="barra-nome"><span class="chip" style="background:${corDe(i)}"></span>${r.modelo}
@@ -137,6 +148,17 @@ function desenhaRobustez(dados, shuf) {
       ${barra(s.acuracia, true)}
     </div>`;
   }).join("");
+  // Aviso honesto quando o IC cobre o acaso — com 10 questões, cobre.
+  const indistintos = linhas.filter((r) => ic[r.modelo] && !ic[r.modelo].distinguivel_do_acaso);
+  const alvoAviso = document.getElementById("aviso-acaso");
+  if (alvoAviso) {
+    alvoAviso.innerHTML = indistintos.length
+      ? `A marca vertical nas barras é o acaso (20%). O intervalo de confiança de 95% de ` +
+        `<b>${indistintos.map((r) => r.modelo).join(", ")}</b> inclui o acaso: com ` +
+        `${ic[linhas[0].modelo]?.n_questoes ?? "poucas"} questões, esses resultados não são ` +
+        `estatisticamente distinguíveis de responder ao léu. Ver "Poder estatístico" em Metodologia.`
+      : `A marca vertical nas barras é o acaso (20%).`;
+  }
   document.getElementById("cartao-robustez").style.display = "";
   return true;
 }
@@ -677,7 +699,8 @@ document.getElementById("btn-baixar").addEventListener("click", () => {
     desenhaMatriz(document.getElementById("tabela-matriz"), dados);
     try {
       const shuf = await (await fetch("results_shuffle.json")).json();
-      if (desenhaRobustez(dados, shuf)) desenhaLetras(shuf);
+      const resumo = await fetch("summary.json").then((r) => r.json()).catch(() => null);
+      if (desenhaRobustez(dados, shuf, resumo)) desenhaLetras(shuf);
     } catch (_) { /* execução com permutação é opcional */ }
   } catch (e) {
     document.getElementById("nota-exec").textContent =

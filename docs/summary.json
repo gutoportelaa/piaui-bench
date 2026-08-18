@@ -23,6 +23,13 @@
       "variacao_pp": -12.0,
       "variacao_relativa": -0.24,
       "acima_do_acaso_pp": 18.0,
+      "erro_padrao": 0.0917,
+      "ic95": [
+        0.2004,
+        0.5596
+      ],
+      "n_questoes": 10,
+      "distinguivel_do_acaso": true,
       "chamadas_fixa": 10,
       "chamadas_permutada": 50,
       "letra_mais_escolhida": "B",
@@ -36,6 +43,13 @@
       "variacao_pp": -6.0,
       "variacao_relativa": -0.15,
       "acima_do_acaso_pp": 14.0,
+      "erro_padrao": 0.1267,
+      "ic95": [
+        0.0917,
+        0.5883
+      ],
+      "n_questoes": 10,
+      "distinguivel_do_acaso": false,
       "chamadas_fixa": 10,
       "chamadas_permutada": 50,
       "letra_mais_escolhida": "B",
@@ -49,6 +63,13 @@
       "variacao_pp": -14.0,
       "variacao_relativa": -0.35,
       "acima_do_acaso_pp": 6.0,
+      "erro_padrao": 0.0733,
+      "ic95": [
+        0.1163,
+        0.4037
+      ],
+      "n_questoes": 10,
+      "distinguivel_do_acaso": false,
       "chamadas_fixa": 10,
       "chamadas_permutada": 50,
       "letra_mais_escolhida": "B",

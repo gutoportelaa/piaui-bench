@@ -77,8 +77,10 @@
       <div class="grafico" id="grafico-robustez"></div>
       <div class="legenda">
         <span><span class="chip" style="background:var(--text-secondary)"></span>Barra sólida: ordem fixa</span>
-        <span><span class="chip amostra-hachura"></span>Barra hachurada: alternativas permutadas</span>
+        <span><span class="chip amostra-hachura"></span>Barra hachurada: ordem cíclica</span>
+        <span><span class="chip" style="background:var(--text-primary);width:2px"></span>Bigode: IC 95%</span>
       </div>
+      <p class="aviso-acaso" id="aviso-acaso"></p>
     </div>
 
     <div class="cartao" id="cartao-letras" style="display:none">
@@ -332,6 +334,96 @@ git commit -am "Adiciona questões sobre X" &amp;&amp; git push</code></pre>
     </div>
 
     <div class="cartao">
+      <h2>Poder estatístico: o que 10 questões permitem concluir</h2>
+      <p class="nota">
+        Esta é a limitação mais importante do projeto, e ela é quantificável. A unidade amostral é a
+        <strong>questão</strong>, não a chamada: repetir a mesma pergunta em 5 posições dá 50 chamadas,
+        mas não 50 observações independentes. O erro-padrão é calculado sobre a taxa de acerto por
+        questão (<em>clustered standard error</em>), como recomenda Miller (2024).
+      </p>
+      <div class="rolagem">
+        <table>
+          <thead><tr><th>Questões</th><th>IC 95% em torno de 40%</th><th class="centro">Largura</th></tr></thead>
+          <tbody>
+            <tr><td><strong>10</strong> (atual)</td><td>[16,8% – 68,7%]</td><td class="centro">51,9 p.p.</td></tr>
+            <tr><td>25</td><td>[23,4% – 59,3%]</td><td class="centro">35,9 p.p.</td></tr>
+            <tr><td>50</td><td>[27,6% – 53,8%]</td><td class="centro">26,2 p.p.</td></tr>
+            <tr><td>100</td><td>[30,9% – 49,8%]</td><td class="centro">18,9 p.p.</td></tr>
+            <tr><td>400</td><td>[35,3% – 44,9%]</td><td class="centro">9,6 p.p.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="aviso">
+        <strong>Consequência</strong>
+        <div style="margin-top:8px">
+          Com 10 questões, o intervalo de confiança dos três modelos <strong>inclui o acaso (20%)</strong>.
+          Formalmente: <em>este benchmark não demonstra que nenhum dos modelos sabe algo sobre o Piauí</em>,
+          nem que um é melhor que o outro. Para separar dois modelos com 10 p.p. de diferença
+          (α=5%, poder=80%) seriam necessárias <strong>~356 questões</strong>; para os 4 p.p. entre
+          <code>llama3.2:3b</code> e <code>qwen3:4b</code>, ~2.260.
+        </div>
+      </div>
+      <p class="nota">
+        O que <em>é</em> sólido aqui é o efeito intra-modelo: a queda sob permutação é medida no mesmo
+        conjunto de questões, com comparação pareada, e aparece nos três modelos e em dois ambientes de
+        hardware distintos. Comparação pareada tem muito mais poder que comparação entre grupos —
+        é também por isso que as instituições reportam <em>deltas</em> com teste pareado, não médias soltas.
+      </p>
+    </div>
+
+    <div class="cartao">
+      <h2>Como as grandes avaliações fazem</h2>
+      <p class="nota">Práticas de referência e o que este projeto adota de cada uma.</p>
+      <div class="rolagem">
+        <table>
+          <thead><tr><th>Instituição / framework</th><th>Prática</th><th>Aqui</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>EleutherAI</strong><br><span class="barra-meta">lm-evaluation-harness</span></td>
+              <td>Não pede a letra: pontua cada alternativa por <em>log-likelihood</em> e escolhe a de maior
+                  probabilidade. Reporta <code>acc</code> e <code>acc_norm</code> (normalizado por bytes,
+                  para não penalizar alternativas longas).</td>
+              <td>Não adotado — o Ollama não expõe log-probs por alternativa. Compensamos com saída
+                  estruturada (<code>enum</code>), que elimina erro de parsing.</td>
+            </tr>
+            <tr>
+              <td><strong>Stanford CRFM</strong><br><span class="barra-meta">HELM</span></td>
+              <td>Roda a mesma questão em modos de adaptação diferentes (<em>joint</em> × <em>separate</em>)
+                  porque a escolha muda o resultado drasticamente — OPT-175B vai de 79,1% a 30,2% no
+                  HellaSwag só trocando o modo.</td>
+              <td>Adotado em espírito: reportamos duas condições lado a lado em vez de um número só.</td>
+            </tr>
+            <tr>
+              <td><strong>TIGER-AI-Lab</strong><br><span class="barra-meta">MMLU-Pro</span></td>
+              <td>Ampliou de 4 para 10 alternativas justamente para reduzir sensibilidade a prompt e
+                  posição: a variação entre 24 estilos de prompt caiu de 4–5% para 2%.</td>
+              <td>Mantidas 5 alternativas (requisito do trabalho); o viés residual é medido, não ignorado.</td>
+            </tr>
+            <tr>
+              <td><strong>Zheng et al. (ICLR 2024)</strong></td>
+              <td>Mostram flutuação de ~10–15 p.p. só movendo a posição do gabarito, e recomendam
+                  <em>permutação cíclica</em> — a permutação completa custaria k! passadas.</td>
+              <td><strong>Adotado diretamente:</strong> é o modo cíclico com 5 rotações.</td>
+            </tr>
+            <tr>
+              <td><strong>LMArena</strong><br><span class="barra-meta">ex-LMSYS Chatbot Arena</span></td>
+              <td>Controla viés posicional apresentando cada par nas duas ordens e só contando vitória se
+                  ela se mantém nas duas. Ranking por Bradley-Terry com IC por bootstrap.</td>
+              <td>Mesma lógica: o resultado que sobrevive à troca de posição é o que conta.</td>
+            </tr>
+            <tr>
+              <td><strong>Anthropic</strong><br><span class="barra-meta">Miller (2024)</span></td>
+              <td>Reportar erro-padrão sempre; agrupar por questão quando há repetições; usar teste
+                  pareado para comparar modelos; fazer análise de poder <em>antes</em> de rodar.</td>
+              <td><strong>Adotado:</strong> IC 95% agrupado por questão em <code>summary.json</code>,
+                  exibido como bigode no gráfico.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="cartao">
       <h2>Reproduzir localmente</h2>
       <pre><code>git clone https://github.com/gutoportelaa/piaui-bench
 cd piaui-bench
@@ -355,7 +447,11 @@ python3 -m http.server -d docs 8000       # abre http://localhost:8000</code></p
         <li><a href="https://arxiv.org/abs/2009.03300" target="_blank" rel="noopener">Hendrycks et al. (2021) — MMLU</a>: o desenho de múltipla escolha adotado aqui</li>
         <li><a href="https://arxiv.org/abs/2304.01938" target="_blank" rel="noopener">Nunes et al. (2023) — ENEM Challenge</a>: LLMs em questões de múltipla escolha em português</li>
         <li><a href="https://github.com/eduagarcia/open_pt_llm_leaderboard" target="_blank" rel="noopener">Open PT-LLM Leaderboard</a> e <a href="https://github.com/nlp-uoregon/mlmm-evaluation" target="_blank" rel="noopener">Poeta / mLMM</a>: benchmarks de LLMs em português</li>
-        <li><a href="https://arxiv.org/abs/2309.05463" target="_blank" rel="noopener">Zheng et al. (2023) — Large Language Models Are Not Robust Multiple Choice Selectors</a>: viés posicional em MCQA</li>
+        <li><a href="https://arxiv.org/abs/2309.03882" target="_blank" rel="noopener">Zheng et al. (ICLR 2024) — Large Language Models Are Not Robust Multiple Choice Selectors</a>: viés de seleção, permutação cíclica e o debiasing PriDe</li>
+        <li><a href="https://arxiv.org/abs/2406.19470" target="_blank" rel="noopener">Gupta et al. (2024) — Changing Answer Order Can Decrease MMLU Accuracy</a>: todos os modelos testados caem sob embaralhamento</li>
+        <li><a href="https://arxiv.org/abs/2411.00640" target="_blank" rel="noopener">Miller (2024) — Adding Error Bars to Evals</a>: erro-padrão agrupado, teste pareado e análise de poder</li>
+        <li><a href="https://blog.eleuther.ai/multiple-choice-normalization/" target="_blank" rel="noopener">EleutherAI — Multiple Choice Normalization</a>: <code>acc</code> × <code>acc_norm</code> e normalização por bytes</li>
+        <li><a href="https://lmarena.ai" target="_blank" rel="noopener">LMArena</a> e <a href="https://arxiv.org/abs/2403.04132" target="_blank" rel="noopener">Chiang et al. (2024)</a>: controle de posição por troca de ordem, Bradley-Terry com IC por bootstrap</li>
         <li>Dados de referência: <a href="https://cidades.ibge.gov.br/brasil/pi" target="_blank" rel="noopener">IBGE — Piauí</a>, <a href="https://www.gov.br/icmbio" target="_blank" rel="noopener">ICMBio</a>, <a href="https://whc.unesco.org/en/list/606/" target="_blank" rel="noopener">UNESCO — Serra da Capivara</a></li>
       </ul>
     </div>

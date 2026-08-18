@@ -13,13 +13,15 @@ usado para comparar a **acurácia** de três LLMs pequenos executados localmente
 `temperature=0`. Ordem fixa = 1 chamada por questão; ordem cíclica = 5 chamadas, com o gabarito
 visitando cada posição exatamente uma vez.
 
-| Modelo | Família | Params | Acurácia (fixa) | Acurácia (cíclica) | Δ | Acima do acaso |
+| Modelo | Família | Params | Acurácia (fixa) | Acurácia (cíclica) | IC 95 % | Δ |
 |---|---|---|---|---|---|---|
-| `llama3.2:3b` | Meta | 3,2 B | 50,0 % | **38,0 %** | −12,0 p.p. | +18,0 p.p. |
-| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 34,0 % | −6,0 p.p. | +14,0 p.p. |
-| `gemma3:4b`   | Google | 4,3 B | 40,0 % | 26,0 % | −14,0 p.p. | +6,0 p.p. |
+| `llama3.2:3b` | Meta | 3,2 B | 50,0 % | **38,0 %** | [20,0 % – 56,0 %] | −12,0 p.p. |
+| `qwen3:4b`    | Alibaba | 4,0 B | 40,0 % | 34,0 % | [9,2 % – 58,8 %] | −6,0 p.p. |
+| `gemma3:4b`   | Google | 4,3 B | 40,0 % | 26,0 % | [11,6 % – 40,4 %] | −14,0 p.p. |
 
-Baseline aleatório: **20 %**. Latência: 0,35–0,70 s por resposta na RTX 4070; 1,7–5,1 s na CPU do
+Baseline aleatório: **20 %**. O IC 95 % é agrupado no nível da questão (n = 10) e **inclui o acaso
+nos três casos** — veja [Poder estatístico](#poder-estatístico-o-que-10-questões-permitem-concluir)
+antes de tirar conclusões do ranking. Latência: 0,35–0,70 s por resposta na RTX 4070; 1,7–5,1 s na CPU do
 runner do GitHub.
 
 > **A cíclica é a medida boa.** Os três modelos caem quando a posição do gabarito deixa de ajudar,
@@ -371,6 +373,123 @@ $ python3 bench/consolidar.py
 
 Saídas: `docs/summary.json` (com `variacao_pp`, `variacao_relativa`, `acima_do_acaso_pp` e a
 concentração na letra dominante) e `docs/summary.csv` para planilha.
+
+---
+
+## Como as grandes avaliações fazem (e o que adotamos)
+
+Levantamento das práticas das principais instituições de avaliação de LLMs, com a decisão
+correspondente neste projeto.
+
+### 1. EleutherAI — `lm-evaluation-harness`
+
+O padrão de fato, usado pelo Open LLM Leaderboard da Hugging Face. **Não pede a letra ao modelo.**
+Cada alternativa é anexada ao enunciado e pontuada por *log-likelihood*; vence a de maior
+probabilidade. É determinístico, barato e imune a erro de formatação. Reporta `acc` (soma bruta das
+log-probs) e `acc_norm` (normalizada por **bytes**, não por tokens — a normalização por token faria
+dois modelos com tokenizadores diferentes receberem notas diferentes mesmo atribuindo a mesma
+probabilidade à mesma string).
+
+**Aqui:** impossível — a API do Ollama não expõe log-probs por alternativa. Compensamos com saída
+estruturada (`format` com `enum`), que remove o erro de parsing, mas **não** remove o viés
+posicional: a escolha continua sendo uma geração condicionada às letras. É por isso que a
+permutação é necessária no nosso desenho e dispensável no deles.
+
+### 2. Stanford CRFM — HELM
+
+Roda a mesma questão sob **modos de adaptação diferentes** (*joint*: todas as alternativas num
+prompt; *separate*: cada alternativa isolada), porque a escolha do modo muda o resultado
+drasticamente. O caso mais citado: **OPT-175B faz 79,1 % no HellaSwag no modo separate 0-shot e
+30,2 % no modo joint 5-shot** — 49 pontos percentuais no mesmo modelo, no mesmo dataset. A
+conclusão do HELM é que o melhor modo depende do cenário e do modelo, então reportar um número
+só é enganoso.
+
+**Aqui:** adotado em espírito — duas condições lado a lado (fixa × cíclica) em vez de uma
+acurácia única.
+
+### 3. TIGER-AI-Lab — MMLU-Pro (NeurIPS 2024)
+
+Ampliou o MMLU de 4 para **10 alternativas** especificamente para reduzir sensibilidade a prompt e
+posição. Resultado medido: a variação entre 24 estilos de prompt caiu de **4–5 % para 2 %**. Mais
+alternativas diluem o ganho de chutar uma posição favorita.
+
+**Aqui:** mantivemos 5 alternativas por ser requisito do trabalho. A consequência é um baseline
+alto (20 % contra 10 % do MMLU-Pro) e viés posicional maior — que medimos em vez de ignorar.
+
+### 4. Zheng et al. (ICLR 2024) — viés de seleção
+
+O trabalho de referência sobre o efeito que este projeto mede. Documenta flutuação de
+**~10–15 pontos percentuais** apenas movendo a posição do gabarito, e mostra que os modelos têm
+priors sobre o *token da opção* (a letra), não sobre o conteúdo. Recomendam **permutação cíclica**:
+a permutação completa custaria `k!` passadas (120 para 5 alternativas), enquanto o ciclo completo
+custa `k` (5) e já garante que o gabarito visite cada posição.
+
+**Aqui:** adotado diretamente — é exatamente o `--modo ciclica --runs 5`.
+
+### 5. Gupta et al. (2024) — *Changing Answer Order Can Decrease MMLU Accuracy*
+
+Confirmação independente: **todos os modelos testados caem** quando as posições são embaralhadas,
+mas não igualmente. Recomendam que leaderboards reportem também quanto cada modelo acertaria por
+acaso.
+
+**Aqui:** é a linha vertical de 20 % nos gráficos e a coluna "acima do acaso" no consolidado.
+
+### 6. LMArena (ex-LMSYS Chatbot Arena)
+
+Paradigma diferente — preferência humana pareada — mas o controle de posição segue o mesmo
+princípio: **cada par é avaliado nas duas ordens, e só conta vitória se ela se mantém nas duas**;
+discordância vira empate. O ranking usa Bradley-Terry (não Elo online) com **IC 95 % por bootstrap
+de 1.000 reamostragens**, porque BT não depende da ordem das partidas e dá intervalos mais estáveis.
+
+**Aqui:** mesma lógica — o resultado que sobrevive à troca de posição é o que conta.
+
+### 7. Anthropic — Miller (2024), *Adding Error Bars to Evals*
+
+Prescreve o tratamento estatístico: reportar **erro-padrão sempre**; **agrupar por questão** quando
+há múltiplas amostras da mesma pergunta (repetições não são independentes); usar **teste pareado**
+para comparar modelos no mesmo conjunto; e fazer **análise de poder antes** de rodar, não depois.
+
+**Aqui:** adotado. O `consolidar.py` calcula erro-padrão agrupado no nível da questão e grava o
+IC 95 % no `summary.json`; o site desenha o bigode na barra.
+
+---
+
+## Poder estatístico: o que 10 questões permitem concluir
+
+A unidade amostral é a **questão**, não a chamada. Repetir a mesma pergunta em 5 posições produz
+50 chamadas, mas não 50 observações independentes — tratá-las como independentes subestimaria o
+erro em cerca de 2,2×. Por isso o erro-padrão sai da taxa de acerto **por questão**.
+
+| Questões | IC 95 % em torno de 40 % | Largura |
+|---|---|---|
+| **10** (atual) | [16,8 % – 68,7 %] | 51,9 p.p. |
+| 25 | [23,4 % – 59,3 %] | 35,9 p.p. |
+| 50 | [27,6 % – 53,8 %] | 26,2 p.p. |
+| 100 | [30,9 % – 49,8 %] | 18,9 p.p. |
+| 400 | [35,3 % – 44,9 %] | 9,6 p.p. |
+
+Questões necessárias para distinguir dois modelos (α = 5 %, poder = 80 %):
+
+| Diferença real | Questões por modelo |
+|---|---|
+| 20 p.p. (ex.: 40 % vs 20 %) | ~82 |
+| 10 p.p. (ex.: 40 % vs 30 %) | ~356 |
+| 4 p.p. (`llama3.2:3b` vs `qwen3:4b`) | ~2 260 |
+
+**A consequência, sem rodeio:** com 10 questões o IC 95 % dos três modelos inclui o acaso. Este
+benchmark **não demonstra** que algum dos modelos sabe algo sobre o Piauí, nem que um é melhor que
+o outro. O ranking observado é compatível com sorte.
+
+O que **é** sólido é o efeito intra-modelo. A queda sob permutação é medida no mesmo conjunto de
+questões, em comparação pareada, e aparece nos três modelos e em dois ambientes de hardware
+independentes. Comparação pareada tem muito mais poder que comparação entre grupos — a mesma razão
+pela qual as instituições reportam *deltas* com teste pareado, e não médias soltas.
+
+**Isso reforça o plano de sala de aula:** cada questão que a turma adiciona estreita o intervalo.
+Sair de 10 para 50 questões corta a largura do IC quase pela metade — é o caminho mais barato para
+o benchmark deixar de ser ilustrativo.
+
+---
 
 ## Como funciona a aquisição de respostas
 
