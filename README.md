@@ -38,25 +38,46 @@ runner do GitHub.
 ### O achado principal
 
 A comparação entre as duas colunas é mais informativa que a acurácia isolada. **Os três modelos
-caem** quando o gabarito deixa de ficar parado numa posição — de 6 a 14 pontos percentuais.
-Parte do que a ordem fixa media não era conhecimento, e sim **viés de seleção posicional**.
+caem** quando o gabarito deixa de ficar parado numa posição — de 6 a 14 pontos percentuais. Parte
+do que a ordem fixa media não era conhecimento.
 
-O caso mais claro:
+Mas o mecanismo **não** é o que a intuição sugere. Rodando as 5 rotações, nenhum modelo ficou preso
+a uma letra: em **0 das 30 combinações modelo × questão** a resposta foi uma letra fixa enquanto o
+conteúdo mudava. O que acontece é **instabilidade**: a resposta muda com a ordem sem seguir nem a
+letra, nem o conteúdo.
+
+| Modelo | Respostas distintas por questão (de 5) | Questões com resposta única |
+|---|---|---|
+| `llama3.2:3b` | 2,3 | **0/10** |
+| `qwen3:4b`    | 2,0 | 4/10 |
+| `gemma3:4b`   | 2,2 | 2/10 |
+
+O viés posicional aparece no **agregado**, não no item. Sob rotação cíclica o gabarito ocupa cada
+posição exatamente 20 % das vezes, então um modelo sem viés responderia ~20 % em cada letra:
+
+| Modelo | A | B | C | D | E |
+|---|---|---|---|---|---|
+| `llama3.2:3b` | 8 % | **38 %** | 34 % | 16 % | 4 % |
+| `qwen3:4b`    | 24 % | 28 % | 20 % | 18 % | 10 % |
+| `gemma3:4b`   | 26 % | 30 % | 26 % | 8 % | 10 % |
+
+Os três **evitam D e E** e concentram no miolo inicial. O `llama3.2:3b` é o mais enviesado
+(4 % em E contra 38 % em B) e também o que mais cai sob rotação; o `qwen3:4b` é o mais próximo do
+uniforme e o mais estável. É o efeito descrito por
+[Zheng et al. (ICLR 2024)](https://arxiv.org/abs/2309.03882).
+
+**Um exemplo que ilustra a diferença.** Em pergunta aberta o `gemma3:4b` responde corretamente:
 
 ```
 $ ollama run gemma3:4b "Qual é a capital do Piauí? Responda em uma palavra."
-Teresina.                       # ✅ sabe a resposta
-
-# mesma pergunta em múltipla escolha (A) Parnaíba (B) Teresina (C) Picos ...
-→ A                             # ❌ escolhe a primeira alternativa
+Teresina.
 ```
 
-A distribuição das letras confirma o padrão. Sob rotação cíclica o gabarito ocupa cada posição
-exatamente 20 % das vezes, então um modelo sem viés responderia ~20 % em cada letra; na prática,
-os três concentraram em "B": 38 % no `llama3.2:3b`, 30 % no `gemma3:4b` e 28 % no `qwen3:4b`.
-É o efeito descrito por
-[Zheng et al. (2023)](https://arxiv.org/abs/2309.05463), e é a razão de o projeto reportar
-as duas medidas lado a lado.
+Na múltipla escolha, nas 5 rotações da Q01, ele digitou A, E, D, C, B — letras diferentes que
+apontam para **a mesma alternativa: "Parnaíba"**. Não é preferência por posição; é um erro de
+conteúdo estável, induzido pela presença dos distratores. Sob ordem fixa isso apareceria como
+"escolheu a letra A" e seria facilmente confundido com viés posicional. **Só a rotação separa os
+dois diagnósticos** — e é essa a justificativa central do desenho.
 
 ---
 

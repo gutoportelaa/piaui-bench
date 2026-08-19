@@ -62,10 +62,11 @@
         correta aparece. O gabarito é remapeado junto, então a acurácia continua comparável.
       </p>
       <p class="nota">
-        <strong>Por que isso importa:</strong> um modelo pode acertar a múltipla escolha sem saber a
-        resposta, bastando ter preferência pela letra em que o gabarito calhou de estar. Sob ordem fixa,
-        preferência por letra e conhecimento produzem exatamente o mesmo número — a acurácia isolada
-        não distingue os dois.
+        <strong>Por que isso importa:</strong> sob ordem fixa, três causas diferentes produzem o mesmo
+        número — conhecimento real, preferência pela letra em que o gabarito calhou de estar, e erro de
+        conteúdo estável. A acurácia isolada não distingue nenhuma delas. A rotação separa as três:
+        conhecimento sobrevive, preferência por letra faz o modelo repetir a mesma <em>letra</em>, e
+        erro de conteúdo faz repetir a mesma <em>alternativa</em> em letras diferentes.
       </p>
       <p class="nota">
         <strong>Como ler:</strong> conhecimento sobrevive à permutação, preferência por letra não.
@@ -86,12 +87,42 @@
     <div class="cartao" id="cartao-letras" style="display:none">
       <h2>Distribuição das letras escolhidas</h2>
       <p class="nota">
-        Frequência de cada letra na execução com permutação. Como a permutação espalha o gabarito
-        uniformemente pelas cinco posições, um modelo sem viés responderia cerca de 20% em cada letra.
-        Concentração acima disso é a assinatura direta do viés: mede a preferência pela <em>posição</em>,
-        independentemente do conteúdo da alternativa.
+        Frequência de cada letra na execução cíclica. Como a rotação coloca o gabarito em cada posição
+        exatamente 20% das vezes, um modelo sem viés responderia ~20% em cada letra. Este é o nível em
+        que o viés posicional aparece neste benchmark: <strong>no agregado, não no item</strong> — os três
+        modelos evitam D e E e concentram no miolo inicial, mas nenhum fica preso a uma letra dentro de
+        uma mesma questão.
       </p>
       <div class="rolagem"><table id="tabela-letras"></table></div>
+    </div>
+
+    <div class="cartao">
+      <h2>O que muda quando a ordem gira</h2>
+      <p class="nota">
+        Classificação das 5 respostas de cada questão. Um modelo pode ser consistente no
+        <em>conteúdo</em> (mesma alternativa, letras diferentes), consistente na <em>posição</em>
+        (mesma letra, alternativas diferentes) ou nenhum dos dois.
+      </p>
+      <div class="rolagem">
+        <table>
+          <thead><tr><th>Modelo</th><th class="centro">Mesma alternativa</th><th class="centro">Mesma letra</th><th class="centro">Instável</th><th class="centro">Respostas distintas (méd.)</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip" style="background:var(--series-1);display:inline-block"></span> llama3.2:3b</td>
+                <td class="centro">0/10</td><td class="centro">0/10</td><td class="centro"><strong>10/10</strong></td><td class="centro">2,3</td></tr>
+            <tr><td><span class="chip" style="background:var(--series-2);display:inline-block"></span> qwen3:4b</td>
+                <td class="centro">4/10</td><td class="centro">0/10</td><td class="centro">6/10</td><td class="centro">2,0</td></tr>
+            <tr><td><span class="chip" style="background:var(--series-3);display:inline-block"></span> gemma3:4b</td>
+                <td class="centro">2/10</td><td class="centro">0/10</td><td class="centro">8/10</td><td class="centro">2,2</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="nota" style="margin-top:16px">
+        <strong>Nenhum modelo ficou preso a uma letra</strong> em nenhuma das 30 combinações. O efeito
+        dominante é instabilidade, não uma preferência rígida. Exemplo da Q01 com o
+        <code>gemma3:4b</code>: nas 5 rotações ele digitou A, E, D, C, B — letras diferentes que apontam
+        todas para <strong>"Parnaíba"</strong>. Em pergunta aberta o mesmo modelo responde "Teresina".
+        Sob ordem fixa isso apareceria só como "escolheu A" e seria confundido com viés posicional.
+      </p>
     </div>
 
     <div class="cartao">
